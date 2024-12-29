@@ -9,7 +9,7 @@ import (
 
 func TestStatusHandler(t *testing.T) {
 	req, err := http.NewRequest("GET", "/status", nil)
-	
+
 	if err != nil {
 		t.Fatalf("Could not create request: %v", err)
 	}
