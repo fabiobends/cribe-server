@@ -9,13 +9,25 @@ import (
 func statusHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"message": "ok"})
+
+	err := json.NewEncoder(w).Encode(map[string]string{"message": "ok"})
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 func notFoundHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(map[string]string{"message": "not found"}); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 	w.WriteHeader(http.StatusNotFound)
-	json.NewEncoder(w).Encode(map[string]string{"message": "not found"})
+
+	err := json.NewEncoder(w).Encode(map[string]string{"message": "not found"})
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 func main() {
@@ -25,5 +37,10 @@ func main() {
 	mux.HandleFunc("/", notFoundHandler)
 
 	fmt.Println("Server is running on port 8080")
-	http.ListenAndServe(":8080", mux)
+
+	err := http.ListenAndServe(":8080", mux)
+
+	if err != nil {
+		fmt.Printf("Server failed to start: %v\n", err)
+	}
 }

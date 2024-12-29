@@ -1,0 +1,15 @@
+run:
+  timeout: 2m
+
+linters:
+  enable:
+    - govet      # Catches potential bugs
+    - errcheck   # Ensures all errors are checked
+    - staticcheck # Advanced checks for best practices
+    - unused     # Detects unused code
+    - gocritic   # Suggests code improvements
+    - gofmt      # Checks formatting
+
+linters-settings:
+  gofmt:
+    simplify: true # Simplify code when possible
