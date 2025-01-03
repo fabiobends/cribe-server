@@ -1,3 +1,3 @@
-module cribe.com/cribe-server
+module cribeapp.com/cribe-server
 
 go 1.23.4
