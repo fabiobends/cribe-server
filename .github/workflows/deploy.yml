@@ -1,0 +1,34 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Cloud SDK Auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GC_CREDENTIALS }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy to Cloud Run
+        id: deploy
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ secrets.GC_SERVICE_NAME }}
+          region: ${{ secrets.GC_REGION }}
+          source: ./cmd/app
+          flags: --allow-unauthenticated
