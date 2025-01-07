@@ -2,28 +2,49 @@
 
 A backend server for the Cribe app.
 
-## ⚙️ Setup
-- Install [Go](https://go.dev).
-- Install [Air](https://github.com/air-verse/air):
-  - Use the [install.sh](https://github.com/air-verse/air#via-installsh) script to install Air:
-  ```bash
-  curl -sSfL https://raw.githubusercontent.com/air-verse/air/master/install.sh | sh
-  ```
-  - Ensure Air is added to your `$PATH`. Follow the instructions [here](https://github.com/air-verse/air#command-not-found-air-or-no-such-file-or-directory) to verify or update your `$PATH`.
-- Install [`golangci-lint`](https://golangci-lint.run/) to your `$PATH` and add module to `go.mod`:
+## 💡 Setup
 
+1. Make sure [Go](https://go.dev) and your path are set up.
 
-## ▶️ Run
+2. Make sure [Docker](https://www.docker.com/) is installed and running.
 
-### Development (hot-reload)
+3. Copy the `.env.example` file to `.env.dev` and make any changes you need.
 ```bash
-air
+cp .env.example .env.dev
 ```
 
-### Production
+## ⚙️ Installing dependencies
+
+Install the following dependencies:
+
+  - [Air](https://github.com/air-verse/air)
+  - [golangci-lint](https://golangci-lint.run/)
+
+## 🚀 Running the server
+
+Run the following commands to start the server:
+
+**Development (hot-reload)**
 ```bash
-go build
+make dev
+```
+
+**Development (no hot-reload)**
+```bash
+make run
+```
+
+**Production**
+```bash
+make build
 ./cribe-server
+```
+
+## 🧪 Testing
+Run the following command to run the tests:
+
+```bash
+make test
 ```
 
 ## 📜 License
