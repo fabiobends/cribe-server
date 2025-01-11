@@ -1,17 +1,30 @@
 package status
 
+import "time"
+
 type StatusServiceInterface interface {
-	GetStatus() string
+	GetStatus() GetStatusResponse
 }
 
 type StatusService struct {
-	repo Repository
+	repo           StatusRepository
+	getCurrentTime func() time.Time
 }
 
-func NewStatusService(repo Repository) *StatusService {
-	return &StatusService{repo: repo}
+func NewStatusService(repo StatusRepository, getCurrentTime func() time.Time) *StatusService {
+	return &StatusService{repo: repo, getCurrentTime: getCurrentTime}
 }
 
-func (service *StatusService) GetStatus() string {
-	return service.repo.GetStatusMessage()
+func (service *StatusService) GetStatus() GetStatusResponse {
+	now := service.getCurrentTime()
+	updatedAt := now.Format(time.RFC3339)
+
+	dependencies := Dependencies{
+		Database: service.repo.GetDatabaseInfo(),
+	}
+
+	return GetStatusResponse{
+		UpdatedAt:    updatedAt,
+		Dependencies: dependencies,
+	}
 }

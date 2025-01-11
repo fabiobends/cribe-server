@@ -3,6 +3,7 @@ package status
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"cribeapp.com/cribe-server/internal/utils"
@@ -23,11 +24,18 @@ func TestStatusIntegration(t *testing.T) {
 		t.Errorf("Expected status code %d, got %d", http.StatusOK, rec.Code)
 	}
 
-	expected := `{"message":"ok"}`
-	result := utils.SanitizeJSONString(rec.Body.String())
+	result := utils.DecodeResponse[GetStatusResponse](rec.Body.String())
 
-	if result != expected {
-		t.Errorf("Expected body %s, got %s", expected, rec.Body.String())
+	if !strings.Contains(result.Dependencies.Database.Version, "PostgreSQL 17") {
+		t.Errorf("Expected version to be 17, got %s", result.Dependencies.Database.Version)
+	}
+
+	if !(result.Dependencies.Database.MaxConnections == 100) {
+		t.Errorf("Expected max connections to be 100, got %d", result.Dependencies.Database.MaxConnections)
+	}
+
+	if !(result.Dependencies.Database.OpenedConnections == 1) {
+		t.Errorf("Expected opened connections to be 1, got %d", result.Dependencies.Database.OpenedConnections)
 	}
 
 }

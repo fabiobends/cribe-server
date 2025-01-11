@@ -1,6 +1,8 @@
 package utils
 
-import "os"
+import (
+	"os"
+)
 
 func GetPort() string {
 	port := os.Getenv("PORT")

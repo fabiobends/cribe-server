@@ -8,15 +8,34 @@ import (
 
 type MockService struct{}
 
-func (m *MockService) GetStatus() string {
-	return "mocked service message"
+func (m *MockService) GetStatus() GetStatusResponse {
+	return GetStatusResponse{
+		UpdatedAt: utils.MockGetCurrentTimeISO(),
+		Dependencies: Dependencies{
+			Database: DatabaseInfo{
+				Version:           "mocked version",
+				MaxConnections:    1,
+				OpenedConnections: 1,
+			},
+		},
+	}
 }
 
 func TestStatusHandler_GetStatus(t *testing.T) {
 	service := &MockService{}
 	handler := NewStatusHandler(service)
 
-	expected := utils.StandardResponse{Message: "mocked service message"}
+	expected := GetStatusResponse{
+		UpdatedAt: utils.MockGetCurrentTimeISO(),
+		Dependencies: Dependencies{
+			Database: DatabaseInfo{
+				Version:           "mocked version",
+				MaxConnections:    1,
+				OpenedConnections: 1,
+			},
+		},
+	}
+
 	result := handler.GetStatus()
 
 	if result != expected {

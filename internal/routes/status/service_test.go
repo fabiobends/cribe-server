@@ -1,18 +1,43 @@
 package status
 
-import "testing"
+import (
+	"testing"
+
+	"cribeapp.com/cribe-server/internal/utils"
+)
 
 type MockRepository struct{}
 
-func (m *MockRepository) GetStatusMessage() string {
-	return "mocked message"
+func (m *MockRepository) GetDatabaseInfo() DatabaseInfo {
+	return DatabaseInfo{
+		Version:           "mocked version",
+		MaxConnections:    1,
+		OpenedConnections: 1,
+	}
 }
 
 func TestStatusService_GetStatus(t *testing.T) {
-	repo := &MockRepository{}
-	service := NewStatusService(repo)
+	mockExecutor := QueryExecutor{
+		QueryItem: func(query string, args ...interface{}) DatabaseInfo {
+			return DatabaseInfo{
+				Version:           "mocked version",
+				MaxConnections:    1,
+				OpenedConnections: 1,
+			}
+		},
+	}
+	repo := NewStatusRepository(WithQueryExecutor(mockExecutor))
+	service := NewStatusService(*repo, utils.MockGetCurrentTime)
 
-	expected := "mocked message"
+	expected := GetStatusResponse{
+		UpdatedAt: utils.MockGetCurrentTimeISO(),
+		Dependencies: Dependencies{
+			Database: DatabaseInfo{
+				Version:           "mocked version",
+				MaxConnections:    1,
+				OpenedConnections: 1,
+			}}}
+
 	result := service.GetStatus()
 
 	if result != expected {

@@ -2,13 +2,14 @@ package status
 
 import (
 	"net/http"
+	"time"
 
 	"cribeapp.com/cribe-server/internal/utils"
 )
 
 func Handler(w http.ResponseWriter, r *http.Request) {
-	repo := &StatusRepository{}
-	service := NewStatusService(repo)
+	repo := *NewStatusRepository()
+	service := NewStatusService(repo, time.Now)
 	handler := NewStatusHandler(service)
 
 	if r.Method == http.MethodGet {
