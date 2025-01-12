@@ -1,7 +1,7 @@
 .PHONY: services-up run dev test
 
 services-up:
-	docker compose up -d
+	docker compose -f compose.dev.yml up -d
 
 services-down:
 	docker compose down

@@ -1,0 +1,9 @@
+.editorconfig
+.golangci.yml
+.air.toml
+.gitignore
+.git
+.github
+.env*
+compose**.yml
+README.md
