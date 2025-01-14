@@ -8,9 +8,12 @@ A backend server for the Cribe app.
 
 2. Make sure [Docker](https://www.docker.com/) is installed and running.
 
-3. Copy the `.env.example` file to `.env.dev` and make any changes you need.
+## ⬇️ Download packages
+
+Download the packages using the following command:
+
 ```bash
-cp .env.example .env.dev
+go mod download
 ```
 
 ## ⚙️ Installing dependencies

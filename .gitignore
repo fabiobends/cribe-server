@@ -1,7 +1,6 @@
 vendor/
 tmp/
-.env*
-!.env.example
+.env
 
 # IDE specific files
 .vscode

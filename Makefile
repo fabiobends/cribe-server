@@ -1,19 +1,28 @@
-.PHONY: services-up run dev test
 
 services-up:
-	docker compose -f compose.dev.yml up -d
+	APP_ENV=$(APP_ENV) docker compose -f compose.local.yml up -d
 
 services-down:
-	docker compose down
+	APP_ENV=$(APP_ENV) docker compose -f compose.local.yml down
 
 build:
 	go build -o cribe-server ./cmd/app
 
-run: services-up
-	godotenv -f .env.dev go run cmd/app/main.go
+run:
+	APP_ENV=test make services-down
+	APP_ENV=development make services-up
+	godotenv -f .env.development go run cmd/app/main.go
 
-dev: services-up
-	godotenv -f .env.dev air
+dev:
+	APP_ENV=test make services-down
+	APP_ENV=development make services-up
+	godotenv -f .env.development air
 
-test: services-up
-	godotenv -f .env.dev go test -v ./...
+test:
+	APP_ENV=development make services-down
+	APP_ENV=test make services-up
+	godotenv -f .env.test go test -v ./...
+	APP_ENV=test make services-down
+
+clean-docker:
+	docker system prune -a --volumes

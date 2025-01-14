@@ -1,8 +1,8 @@
 services:
   database:
-    container_name: cribe-dev
+    container_name: cribe-${APP_ENV}
     image: postgres:17-alpine
     env_file:
-      - .env.dev
+      - .env.${APP_ENV}
     ports:
       - 5432:5432
