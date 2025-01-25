@@ -17,7 +17,7 @@ type MigrationRepository struct {
 }
 
 type QueryExecutor struct {
-	QueryItem func(query string, args ...interface{}) Migration
+	QueryItem func(query string, args ...interface{}) (Migration, error)
 	Exec      func(query string, args ...interface{}) error
 }
 
@@ -48,7 +48,7 @@ func NewMigrationRepository(options ...Option) *MigrationRepository {
 	return repo
 }
 
-func (r *MigrationRepository) GetLastMigration() Migration {
+func (r *MigrationRepository) GetLastMigration() (Migration, error) {
 	return r.executor.QueryItem("SELECT * FROM migrations ORDER BY id DESC LIMIT 1")
 }
 

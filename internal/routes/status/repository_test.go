@@ -6,12 +6,12 @@ import (
 
 type MockQueryExecutor struct{}
 
-func QueryItem(query string, param ...any) DatabaseInfo {
+func QueryItem(query string, param ...any) (DatabaseInfo, error) {
 	return DatabaseInfo{
 		Version:           "mocked version",
 		MaxConnections:    1,
 		OpenedConnections: 1,
-	}
+	}, nil
 }
 
 func TestStatusRepository_GetDatabaseInfo(t *testing.T) {
@@ -22,7 +22,7 @@ func TestStatusRepository_GetDatabaseInfo(t *testing.T) {
 		OpenedConnections: 1,
 	}
 
-	result := repo.GetDatabaseInfo()
+	result, _ := repo.GetDatabaseInfo()
 
 	if result != expected {
 		t.Errorf("expected %q, got %q", expected, result)

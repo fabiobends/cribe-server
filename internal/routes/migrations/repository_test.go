@@ -26,30 +26,30 @@ func (s *SpyQueryExecutor) Exec(query string, args ...any) error {
 	return err
 }
 
-func (s *SpyQueryExecutor) QueryItemWithPopulatedDatabase(query string, args ...any) Migration {
+func (s *SpyQueryExecutor) QueryItemWithPopulatedDatabase(query string, args ...any) (Migration, error) {
 	if s.HasExecBeenCalledSuccessfully {
 		return Migration{
 			ID:        1,
 			Name:      "000002_second",
 			CreatedAt: utils.MockGetCurrentTime(),
-		}
+		}, nil
 	}
 	return Migration{
 		ID:        1,
 		Name:      "000001_initial",
 		CreatedAt: utils.MockGetCurrentTime(),
-	}
+	}, nil
 }
 
-func (s *SpyQueryExecutor) QueryItemWithEmptyDatabase(query string, args ...any) Migration {
+func (s *SpyQueryExecutor) QueryItemWithEmptyDatabase(query string, args ...any) (Migration, error) {
 	if s.HasExecBeenCalledSuccessfully {
 		return Migration{
 			ID:        1,
 			Name:      "000002_second",
 			CreatedAt: utils.MockGetCurrentTime(),
-		}
+		}, nil
 	}
-	return Migration{}
+	return Migration{}, nil
 }
 
 func GetNewMockMigrationRepoWithEmptyDatabase() MigrationRepository {
@@ -70,7 +70,7 @@ func TestMigrationRepository_GetLastMigration(t *testing.T) {
 		CreatedAt: utils.MockGetCurrentTime(),
 	}
 
-	result := repo.GetLastMigration()
+	result, _ := repo.GetLastMigration()
 
 	if result != expected {
 		t.Errorf("expected %q, got %q", expected, result)

@@ -8,22 +8,22 @@ import (
 
 type MockRepository struct{}
 
-func (m *MockRepository) GetDatabaseInfo() DatabaseInfo {
+func (m *MockRepository) GetDatabaseInfo() (DatabaseInfo, error) {
 	return DatabaseInfo{
 		Version:           "mocked version",
 		MaxConnections:    1,
 		OpenedConnections: 1,
-	}
+	}, nil
 }
 
 func TestStatusService_GetStatus(t *testing.T) {
 	mockExecutor := QueryExecutor{
-		QueryItem: func(query string, args ...interface{}) DatabaseInfo {
+		QueryItem: func(query string, args ...interface{}) (DatabaseInfo, error) {
 			return DatabaseInfo{
 				Version:           "mocked version",
 				MaxConnections:    1,
 				OpenedConnections: 1,
-			}
+			}, nil
 		},
 	}
 	repo := NewStatusRepository(WithQueryExecutor(mockExecutor))

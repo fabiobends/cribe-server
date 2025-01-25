@@ -19,8 +19,9 @@ func (service *StatusService) GetStatus() GetStatusResponse {
 	now := service.getCurrentTime()
 	updatedAt := now.Format(time.RFC3339)
 
+	databaseInfo, _ := service.repo.GetDatabaseInfo()
 	dependencies := Dependencies{
-		Database: service.repo.GetDatabaseInfo(),
+		Database: databaseInfo,
 	}
 
 	return GetStatusResponse{

@@ -18,7 +18,7 @@ func newConnection() *pgx.Conn {
 	return conn
 }
 
-func QueryItem[T any](query string, params ...any) T {
+func QueryItem[T any](query string, params ...any) (T, error) {
 	conn := newConnection()
 
 	rows, err := conn.Query(context.Background(), query, params...)
@@ -35,10 +35,10 @@ func QueryItem[T any](query string, params ...any) T {
 		log.Printf("Unable to collect row: %v", err)
 	}
 
-	return item
+	return item, err
 }
 
-func QueryList[T any](query string, params ...any) []T {
+func QueryList[T any](query string, params ...any) ([]T, error) {
 	conn := newConnection()
 
 	rows, err := conn.Query(context.Background(), query, params...)
@@ -47,17 +47,17 @@ func QueryList[T any](query string, params ...any) []T {
 
 	if err != nil {
 		log.Printf("Unable to query rows: %v", err)
-		return []T{}
+		return []T{}, err
 	}
 
 	items, err := pgx.CollectRows(rows, pgx.RowToStructByNameLax[T])
 
 	if err != nil {
 		log.Printf("Unable to query rows: %v", err)
-		return []T{}
+		return []T{}, err
 	}
 
-	return items
+	return items, err
 }
 
 func Exec(query string, params ...any) error {
@@ -69,8 +69,7 @@ func Exec(query string, params ...any) error {
 
 	if err != nil {
 		log.Printf("Unable to execute query: %v", err)
-		return err
 	}
 
-	return nil
+	return err
 }

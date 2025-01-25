@@ -7,7 +7,7 @@ import (
 )
 
 type QueryExecutor struct {
-	QueryItem func(query string, args ...interface{}) DatabaseInfo
+	QueryItem func(query string, args ...interface{}) (DatabaseInfo, error)
 }
 
 type StatusRepository struct {
@@ -40,7 +40,7 @@ func NewStatusRepository(options ...Option) *StatusRepository {
 	return repo
 }
 
-func (r *StatusRepository) GetDatabaseInfo() DatabaseInfo {
+func (r *StatusRepository) GetDatabaseInfo() (DatabaseInfo, error) {
 	query := `
 		SELECT
 			version() AS version,

@@ -38,7 +38,7 @@ func (s *MigrationService) fetchMigrations() []Migration {
 		return nil
 	}
 
-	lastExecutedMigration := s.repo.GetLastMigration()
+	lastExecutedMigration, _ := s.repo.GetLastMigration()
 
 	migrations := []Migration{}
 	lastUpIndex := len(files) / 2
