@@ -1,3 +1,4 @@
+.PHONY: services-up run dev test migrate-create migrate-up migrate-down
 
 services-up:
 	APP_ENV=$(APP_ENV) docker compose -f compose.local.yml up -d
@@ -26,3 +27,15 @@ test:
 
 clean-docker:
 	docker system prune -a --volumes
+
+# Migrations
+migration_path=./infra/migrations
+
+migrate-create:
+	migrate create -ext sql -dir $(migration_path) -seq $(filter-out $@,$(MAKECMDGOALS))
+
+migrate-up:
+	migrate -path $(migration_path) -database ${DATABASE_URL} up
+
+migrate-down:
+	migrate -path $(migration_path) -database ${DATABASE_URL} down

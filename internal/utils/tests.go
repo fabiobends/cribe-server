@@ -9,3 +9,7 @@ func MockGetCurrentTime() time.Time {
 func MockGetCurrentTimeISO() string {
 	return MockGetCurrentTime().Format(time.RFC3339)
 }
+
+func CleanDatabase() error {
+	return Exec("DROP SCHEMA public CASCADE; CREATE SCHEMA public;")
+}

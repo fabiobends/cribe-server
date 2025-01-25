@@ -22,6 +22,7 @@ Install the following dependencies:
 
   - [Air](https://github.com/air-verse/air)
   - [golangci-lint](https://golangci-lint.run/)
+  - [golang-migrate](https://github.com/golang-migrate/migrate/tree/master/cmd/migrate)
 
 ## 🚀 Running the server
 
