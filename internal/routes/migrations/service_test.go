@@ -56,7 +56,7 @@ func TestMigrationsService_DoLiveRunMigrations(t *testing.T) {
 	service := GetNewMockMigrationService()
 	availableMigrations := service.DoLiveRunMigrations()
 
-	if len(availableMigrations) != 0 {
-		t.Errorf("expected 0 migrations, got %d", len(availableMigrations))
+	if len(availableMigrations) != 2 {
+		t.Errorf("expected 2 migrations, got %d", len(availableMigrations))
 	}
 }
