@@ -48,8 +48,8 @@ func TestMigrations_PostIntegration(t *testing.T) {
 
 	result := utils.DecodeResponse[[]Migration](rec.Body.String())
 
-	if len(result) != 0 {
-		t.Errorf("Expected no migrations, got %d", len(result))
+	if len(result) == 0 {
+		t.Error("Expected at least one migration, got 0")
 	}
 
 }

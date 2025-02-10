@@ -87,7 +87,7 @@ func (s *MigrationService) execMigrationsUp() []Migration {
 		log.Printf("Couldn't update migrations table: %v", err)
 	}
 
-	return s.fetchMigrations()
+	return migrations
 }
 
 func (s *MigrationService) DoDryRunMigrations() []Migration {

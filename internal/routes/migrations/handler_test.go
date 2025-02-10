@@ -36,11 +36,30 @@ func TestMigrationsHandler_PostMigrations(t *testing.T) {
 	service := GetNewMockMigrationService()
 	handler := NewMigrationHandler(service)
 
-	expected := []Migration{}
+	// First run
+	firstResult := handler.PostMigrations()
+	firstExpected := []Migration{
+		{
+			ID:        2,
+			Name:      "000002_second",
+			CreatedAt: utils.MockGetCurrentTime(),
+		},
+		{
+			ID:        1,
+			Name:      "000001_initial",
+			CreatedAt: utils.MockGetCurrentTime(),
+		},
+	}
 
-	result := handler.PostMigrations()
+	if fmt.Sprint(firstResult) != fmt.Sprint(firstExpected) {
+		t.Errorf("expected %q, got %q", firstExpected, firstResult)
+	}
 
-	if fmt.Sprint(result) != fmt.Sprint(expected) {
-		t.Errorf("expected %q, got %q", expected, result)
+	// Second run
+	secondResult := handler.PostMigrations()
+	secondExpected := []Migration{}
+
+	if fmt.Sprint(secondResult) != fmt.Sprint(secondExpected) {
+		t.Errorf("expected %q, got %q", secondExpected, secondResult)
 	}
 }
