@@ -9,7 +9,43 @@ on:
       - main
 
 jobs:
+  sanitize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check for unformatted files
+        run: |
+          echo "Checking for unformatted files..."
+          unformatted_files=$(gofmt -l .)
+          if [ -n "$unformatted_files" ]; then
+            echo "The following files are not formatted correctly:"
+            echo "$unformatted_files"
+            exit 1
+          fi
+          echo "All files are formatted correctly."
+  test:
+    needs: sanitize
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install godotenv
+        run: |
+          echo "Installing godotenv..."
+          go install github.com/joho/godotenv/cmd/godotenv@latest
+          echo "Adding Go binary directory to PATH..."
+          echo "$HOME/go/bin" >> $GITHUB_PATH
+
+      - name: Run tests
+        run: |
+          echo "Running tests..."
+          make test
+
   deploy:
+    needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: 'read'
