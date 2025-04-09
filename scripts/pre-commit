@@ -6,16 +6,25 @@ echo "Running pre-commit hook..."
 STAGED_FILES=$(git diff --cached --name-only --diff-filter=d | grep '\.go$')
 
 if [ -z "$STAGED_FILES" ]; then
-    echo "No Go files to format."
+    echo "No Go files to format or lint."
     echo "Pre-commit hook completed successfully!"
     exit 0
 fi
 
-# Format the files
-echo "Formatting Go files..."
+echo "Formatting and linting Go files..."
 
 for file in $STAGED_FILES; do
+    # Format file
     go fmt "$file"
+
+    # Run linter
+    golangci-lint run "$file"
+    if [ $? -ne 0 ]; then
+        echo "Linting failed!"
+        exit 1
+    fi
+
+    # Stage formatted file
     git add "$file"
 done
 
