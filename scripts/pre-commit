@@ -13,19 +13,20 @@ fi
 
 echo "Formatting and linting Go files..."
 
+# Format all staged files
 for file in $STAGED_FILES; do
-    # Format file
     go fmt "$file"
+    git add "$file"
+done
 
-    # Run linter
-    golangci-lint run "$file"
+# Run linter on the packages containing the staged files
+PACKAGES=$(echo "$STAGED_FILES" | sed 's/\/[^/]*$//' | sort -u)
+for pkg in $PACKAGES; do
+    golangci-lint run "./$pkg/..."
     if [ $? -ne 0 ]; then
         echo "Linting failed!"
         exit 1
     fi
-
-    # Stage formatted file
-    git add "$file"
 done
 
 echo "Pre-commit hook completed successfully!"
