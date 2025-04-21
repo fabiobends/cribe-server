@@ -1,14 +1,10 @@
 package users
 
-import "time"
+import (
+	"time"
 
-type QueryExecutor struct {
-	QueryItem func(query string, args ...interface{}) (User, error)
-}
-
-type UserRepository struct {
-	executor QueryExecutor
-}
+	"cribeapp.com/cribe-server/internal/utils"
+)
 
 type User struct {
 	ID        int       `json:"id"`
@@ -20,28 +16,37 @@ type User struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-type Option func(*UserRepository)
-
-func WithQueryExecutor(executor QueryExecutor) Option {
-	return func(r *UserRepository) {
-		r.executor = executor
-	}
+type UserDTO struct {
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+	Email     string `json:"email"`
+	Password  string `json:"password"`
 }
 
-func NewUserRepository(options ...Option) *UserRepository {
-	repo := &UserRepository{}
-	for _, option := range options {
-		option(repo)
-	}
-	return repo
+type UserWithoutPassword struct {
+	ID        int       `json:"id"`
+	FirstName string    `json:"first_name"`
+	LastName  string    `json:"last_name"`
+	Email     string    `json:"email"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
-func (r *UserRepository) CreateUser(user User) (User, error) {
+type UserRepository struct {
+	*utils.Repository[User]
+}
+
+func NewUserRepository(options ...utils.Option[User]) *UserRepository {
+	repo := utils.NewRepository(options...)
+	return &UserRepository{Repository: repo}
+}
+
+func (r *UserRepository) CreateUser(user UserDTO) (User, error) {
 	query := `
 		INSERT INTO users (first_name, last_name, email, password)
 		VALUES ($1, $2, $3, $4)
 		RETURNING *
 	`
 
-	return r.executor.QueryItem(query, user.FirstName, user.LastName, user.Email, user.Password)
+	return r.Repository.Executor.QueryItem(query, user.FirstName, user.LastName, user.Email, user.Password)
 }
