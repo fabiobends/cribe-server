@@ -6,7 +6,7 @@ import (
 	"cribeapp.com/cribe-server/internal/utils"
 )
 
-func Handler(w http.ResponseWriter, r *http.Request) {
+func HandleHTTPRequests(w http.ResponseWriter, r *http.Request) {
 	repo := *NewUserRepository()
 	service := NewUserService(repo)
 	handler := NewUserHandler(service)

@@ -11,7 +11,7 @@ import (
 
 func TestUsers_PostIntegrationTests(t *testing.T) {
 	log.Printf("Setting up test environment")
-	utils.CleanDatabaseAndRunMigrations(migrations.Handler)
+	utils.CleanDatabaseAndRunMigrations(migrations.HandleHTTPRequests)
 
 	t.Run("should create a user with valid input", func(t *testing.T) {
 		// Create a valid user request
@@ -23,11 +23,11 @@ func TestUsers_PostIntegrationTests(t *testing.T) {
 		}
 
 		// Send request using test utility
-		resp := utils.MustSendTestRequest[UserWithoutPassword](utils.TestRequest{
+		resp := utils.MustSendTestRequest[User](utils.TestRequest{
 			Method:      http.MethodPost,
 			URL:         "/users",
 			Body:        userDTO,
-			HandlerFunc: Handler,
+			HandlerFunc: HandleHTTPRequests,
 		})
 
 		// Check status code
@@ -59,7 +59,7 @@ func TestUsers_PostIntegrationTests(t *testing.T) {
 			Method:      http.MethodPost,
 			URL:         "/users",
 			Body:        userDTO,
-			HandlerFunc: Handler,
+			HandlerFunc: HandleHTTPRequests,
 		})
 
 		// Check status code

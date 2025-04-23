@@ -14,7 +14,7 @@ func GetNewMockUserService() *UserService {
 
 func TestUserService_CreateUser(t *testing.T) {
 	t.Run("should create a user with valid input and return the user", func(t *testing.T) {
-		user := User{
+		user := UserWithPassword{
 			ID:        1,
 			FirstName: "John",
 			LastName:  "Doe",

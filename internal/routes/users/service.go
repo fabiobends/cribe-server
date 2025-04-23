@@ -3,7 +3,7 @@ package users
 import "cribeapp.com/cribe-server/internal/utils"
 
 type UserServiceInterface interface {
-	PostUser(user UserDTO) (UserWithoutPassword, *utils.ErrorResponse)
+	PostUser(user UserDTO) (User, *utils.ErrorResponse)
 }
 
 type UserService struct {
@@ -14,7 +14,7 @@ func NewUserService(repo UserRepository) *UserService {
 	return &UserService{repo: repo}
 }
 
-func (service *UserService) PostUser(user UserDTO) (UserWithoutPassword, *utils.ErrorResponse) {
+func (service *UserService) PostUser(user UserDTO) (User, *utils.ErrorResponse) {
 	// Validate required fields
 	missingFields := utils.ValidateRequiredFields(
 		utils.ValidateRequiredField("first_name", user.FirstName),
@@ -24,17 +24,17 @@ func (service *UserService) PostUser(user UserDTO) (UserWithoutPassword, *utils.
 	)
 
 	if len(missingFields) > 0 {
-		return UserWithoutPassword{}, utils.NewValidationError(missingFields...)
+		return User{}, utils.NewValidationError(missingFields...)
 	}
 
 	// Create user in repository
 	result, err := service.repo.CreateUser(user)
 	if err != nil {
-		return UserWithoutPassword{}, utils.NewDatabaseError(err)
+		return User{}, utils.NewDatabaseError(err)
 	}
 
 	// Return user without password
-	return UserWithoutPassword{
+	return User{
 		ID:        result.ID,
 		FirstName: result.FirstName,
 		LastName:  result.LastName,
