@@ -9,7 +9,13 @@ import (
 )
 
 func newConnection() *pgx.Conn {
-	conn, err := pgx.Connect(context.Background(), os.Getenv("DATABASE_URL"))
+	databaseUrl := os.Getenv("DATABASE_URL")
+
+	if os.Getenv("APP_ENV") == "test" {
+		log.Printf("Using database: %s", databaseUrl)
+	}
+
+	conn, err := pgx.Connect(context.Background(), databaseUrl)
 
 	if err != nil {
 		log.Printf("Unable to connect to database: %v", err)

@@ -1,6 +1,7 @@
 package migrations
 
 import (
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -9,6 +10,9 @@ import (
 )
 
 func TestMigrations_GetIntegration(t *testing.T) {
+	log.Printf("Setting up test environment")
+	_ = utils.CleanDatabase()
+
 	req, err := http.NewRequest("GET", "/migrations", nil)
 
 	if err != nil {
