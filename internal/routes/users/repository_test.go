@@ -1,6 +1,7 @@
 package users
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -19,6 +20,18 @@ func (m *MockQueryExecutor) QueryItem(query string, args ...any) (User, error) {
 func GetNewMockRepository() *UserRepository {
 	mockExecutor := &MockQueryExecutor{
 		QueryItemFunc: func(query string, args ...any) (User, error) {
+			neededArgsLength := 4
+			if len(args) < neededArgsLength {
+				return User{}, fmt.Errorf("expected %d arguments, got %d", neededArgsLength, len(args))
+			}
+
+			// Check if any field is empty
+			for _, arg := range args {
+				if arg == "" {
+					return User{}, fmt.Errorf("empty field")
+				}
+			}
+
 			return User{
 				ID:        1,
 				FirstName: "John",
@@ -37,32 +50,48 @@ func GetNewMockRepository() *UserRepository {
 }
 
 func TestUserRepository_CreateUser(t *testing.T) {
-	expected := User{
-		ID:        1,
-		FirstName: "John",
-		LastName:  "Doe",
-		Email:     "john.doe@example.com",
-		Password:  "password123",
-		CreatedAt: utils.MockGetCurrentTime(),
-		UpdatedAt: utils.MockGetCurrentTime(),
-	}
+	t.Run("should create a user with valid input", func(t *testing.T) {
+		expected := User{
+			ID:        1,
+			FirstName: "John",
+			LastName:  "Doe",
+			Email:     "john.doe@example.com",
+			Password:  "password123",
+			CreatedAt: utils.MockGetCurrentTime(),
+			UpdatedAt: utils.MockGetCurrentTime(),
+		}
 
-	repo := GetNewMockRepository()
+		repo := GetNewMockRepository()
 
-	userDTO := UserDTO{
-		FirstName: expected.FirstName,
-		LastName:  expected.LastName,
-		Email:     expected.Email,
-		Password:  expected.Password,
-	}
+		userDTO := UserDTO{
+			FirstName: expected.FirstName,
+			LastName:  expected.LastName,
+			Email:     expected.Email,
+			Password:  expected.Password,
+		}
 
-	result, err := repo.CreateUser(userDTO)
+		result, err := repo.CreateUser(userDTO)
 
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
+		if err != nil {
+			t.Errorf("Unexpected error: %v", err)
+		}
 
-	if !reflect.DeepEqual(expected, result) {
-		t.Errorf("Expected %+v, got %+v", expected, result)
-	}
+		if !reflect.DeepEqual(expected, result) {
+			t.Errorf("Expected %+v, got %+v", expected, result)
+		}
+	})
+
+	t.Run("should not create a user with invalid input", func(t *testing.T) {
+		repo := GetNewMockRepository()
+		userDTO := UserDTO{
+			FirstName: "John",
+			LastName:  "Doe",
+			Email:     "john.doe@example.com",
+		}
+
+		_, err := repo.CreateUser(userDTO)
+		if err == nil {
+			t.Errorf("Expected error, got nil")
+		}
+	})
 }

@@ -7,6 +7,17 @@ import (
 	"strings"
 )
 
+func DecodeBody[T any](r *http.Request) (T, *ErrorResponse) {
+	var decodedBody T
+
+	if err := json.NewDecoder(r.Body).Decode(&decodedBody); err != nil {
+		var zero T
+		return zero, NewErrorResponse("Invalid request body", err.Error())
+	}
+
+	return decodedBody, nil
+}
+
 func EncodeResponse(w http.ResponseWriter, statusCode int, response any) {
 	w.WriteHeader(statusCode)
 	err := json.NewEncoder(w).Encode(response)

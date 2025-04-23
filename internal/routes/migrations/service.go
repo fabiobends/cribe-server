@@ -4,6 +4,8 @@ import (
 	"log"
 	"strings"
 	"time"
+
+	"github.com/golang-migrate/migrate/v4"
 )
 
 type MigrationServiceInterface interface {
@@ -67,22 +69,22 @@ func (s *MigrationService) execMigrationsUp() []Migration {
 		log.Fatalf("Unable to create migration instance: %v", err)
 	}
 
+	// Force the migration to run
 	err = m.Up()
-	if err != nil {
+	if err != nil && err != migrate.ErrNoChange {
 		log.Printf("Unable to migrate up: %v", err)
-	} else {
-		log.Printf("Migration up successful")
+		return []Migration{}
 	}
 
+	// Get the list of migrations that should have been run
 	migrations := s.fetchMigrations()
 	if len(migrations) == 0 {
 		return []Migration{}
 	}
 
-	lastMigration := migrations[len(migrations)-1]
-
-	err = s.repo.SaveMigration(lastMigration.Name)
-
+	// Save the top migration to track it
+	topMigration := migrations[0]
+	err = s.repo.SaveMigration(topMigration.Name)
 	if err != nil {
 		log.Printf("Couldn't update migrations table: %v", err)
 	}

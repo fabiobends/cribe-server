@@ -24,7 +24,14 @@ func WithQueryExecutor[T any](executor QueryExecutor[T]) Option[T] {
 
 // NewRepository creates a new repository with the given options
 func NewRepository[T any](options ...Option[T]) *Repository[T] {
-	repo := &Repository[T]{}
+	repo := &Repository[T]{
+		// The default executor is the database
+		Executor: QueryExecutor[T]{
+			QueryItem: QueryItem[T],
+			QueryList: QueryList[T],
+			Exec:      Exec,
+		},
+	}
 	for _, option := range options {
 		option(repo)
 	}

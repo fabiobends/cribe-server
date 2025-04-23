@@ -5,6 +5,7 @@ import (
 
 	"cribeapp.com/cribe-server/internal/routes/migrations"
 	"cribeapp.com/cribe-server/internal/routes/status"
+	"cribeapp.com/cribe-server/internal/routes/users"
 	"cribeapp.com/cribe-server/internal/utils"
 )
 
@@ -24,6 +25,7 @@ func Handler(port string) error {
 
 	mux.HandleFunc("/status", status.Handler)
 	mux.HandleFunc("/migrations", migrations.Handler)
+	mux.HandleFunc("/users", users.Handler)
 	mux.HandleFunc("/", utils.NotFound)
 
 	muxWithMiddleware := middleware(mux)
