@@ -18,7 +18,7 @@ func (m *MockRepository) GetDatabaseInfo() (DatabaseInfo, error) {
 
 func TestStatusService_GetStatus(t *testing.T) {
 	mockExecutor := QueryExecutor{
-		QueryItem: func(query string, args ...interface{}) (DatabaseInfo, error) {
+		QueryItem: func(query string, args ...any) (DatabaseInfo, error) {
 			return DatabaseInfo{
 				Version:           "mocked version",
 				MaxConnections:    1,

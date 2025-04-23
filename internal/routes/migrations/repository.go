@@ -1,24 +1,16 @@
 package migrations
 
 import (
-	"time"
-
 	"cribeapp.com/cribe-server/internal/utils"
 )
-
-type Migration struct {
-	ID        int       `json:"id"`
-	Name      string    `json:"name"`
-	CreatedAt time.Time `json:"created_at"`
-}
 
 type MigrationRepository struct {
 	executor QueryExecutor
 }
 
 type QueryExecutor struct {
-	QueryItem func(query string, args ...interface{}) (Migration, error)
-	Exec      func(query string, args ...interface{}) error
+	QueryItem func(query string, args ...any) (Migration, error)
+	Exec      func(query string, args ...any) error
 }
 
 type Option func(*MigrationRepository)

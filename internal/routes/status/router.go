@@ -7,7 +7,7 @@ import (
 	"cribeapp.com/cribe-server/internal/utils"
 )
 
-func Handler(w http.ResponseWriter, r *http.Request) {
+func HandleHTTPRequests(w http.ResponseWriter, r *http.Request) {
 	repo := *NewStatusRepository()
 	service := NewStatusService(repo, time.Now)
 	handler := NewStatusHandler(service)

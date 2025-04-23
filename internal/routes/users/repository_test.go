@@ -10,29 +10,29 @@ import (
 
 // MockQueryExecutor is a mock implementation of QueryExecutor
 type MockQueryExecutor struct {
-	QueryItemFunc func(query string, args ...any) (User, error)
+	QueryItemFunc func(query string, args ...any) (UserWithPassword, error)
 }
 
-func (m *MockQueryExecutor) QueryItem(query string, args ...any) (User, error) {
+func (m *MockQueryExecutor) QueryItem(query string, args ...any) (UserWithPassword, error) {
 	return m.QueryItemFunc(query, args...)
 }
 
 func GetNewMockRepository() *UserRepository {
 	mockExecutor := &MockQueryExecutor{
-		QueryItemFunc: func(query string, args ...any) (User, error) {
+		QueryItemFunc: func(query string, args ...any) (UserWithPassword, error) {
 			neededArgsLength := 4
 			if len(args) < neededArgsLength {
-				return User{}, fmt.Errorf("expected %d arguments, got %d", neededArgsLength, len(args))
+				return UserWithPassword{}, fmt.Errorf("expected %d arguments, got %d", neededArgsLength, len(args))
 			}
 
 			// Check if any field is empty
 			for _, arg := range args {
 				if arg == "" {
-					return User{}, fmt.Errorf("empty field")
+					return UserWithPassword{}, fmt.Errorf("empty field")
 				}
 			}
 
-			return User{
+			return UserWithPassword{
 				ID:        1,
 				FirstName: "John",
 				LastName:  "Doe",
@@ -44,14 +44,14 @@ func GetNewMockRepository() *UserRepository {
 		},
 	}
 
-	return NewUserRepository(utils.WithQueryExecutor(utils.QueryExecutor[User]{
+	return NewUserRepository(utils.WithQueryExecutor(utils.QueryExecutor[UserWithPassword]{
 		QueryItem: mockExecutor.QueryItem,
 	}))
 }
 
 func TestUserRepository_CreateUser(t *testing.T) {
 	t.Run("should create a user with valid input", func(t *testing.T) {
-		expected := User{
+		expected := UserWithPassword{
 			ID:        1,
 			FirstName: "John",
 			LastName:  "Doe",

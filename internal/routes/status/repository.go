@@ -7,7 +7,7 @@ import (
 )
 
 type QueryExecutor struct {
-	QueryItem func(query string, args ...interface{}) (DatabaseInfo, error)
+	QueryItem func(query string, args ...any) (DatabaseInfo, error)
 }
 
 type StatusRepository struct {

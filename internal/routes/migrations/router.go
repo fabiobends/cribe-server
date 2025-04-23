@@ -27,7 +27,7 @@ func getMigrationsPath() (string, error) {
 	return filepath.Join(projectRoot, "..", "infra", "migrations"), nil
 }
 
-func Handler(w http.ResponseWriter, r *http.Request) {
+func HandleHTTPRequests(w http.ResponseWriter, r *http.Request) {
 	repo := NewMigrationRepository()
 
 	migrationsPath, err := getMigrationsPath()

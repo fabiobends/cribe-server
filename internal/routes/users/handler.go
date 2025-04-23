@@ -10,6 +10,6 @@ func NewUserHandler(service UserServiceInterface) *UserHandler {
 	return &UserHandler{service: service}
 }
 
-func (handler *UserHandler) PostUser(user UserDTO) (UserWithoutPassword, *utils.ErrorResponse) {
+func (handler *UserHandler) PostUser(user UserDTO) (User, *utils.ErrorResponse) {
 	return handler.service.PostUser(user)
 }

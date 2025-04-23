@@ -23,9 +23,9 @@ func middleware(next http.Handler) http.Handler {
 func Handler(port string) error {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/status", status.Handler)
-	mux.HandleFunc("/migrations", migrations.Handler)
-	mux.HandleFunc("/users", users.Handler)
+	mux.HandleFunc("/status", status.HandleHTTPRequests)
+	mux.HandleFunc("/migrations", migrations.HandleHTTPRequests)
+	mux.HandleFunc("/users", users.HandleHTTPRequests)
 	mux.HandleFunc("/", utils.NotFound)
 
 	muxWithMiddleware := middleware(mux)
