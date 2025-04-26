@@ -59,3 +59,35 @@ func TestUserHandler_PostUser(t *testing.T) {
 		}
 	})
 }
+
+func TestUserHandler_GetUserById(t *testing.T) {
+	t.Run("should get a user by id and return the user", func(t *testing.T) {
+		service := GetNewMockUserService()
+		handler := NewUserHandler(service)
+
+		result, err := handler.GetUserById(1)
+		if err != nil {
+			t.Errorf("Error getting user: %v", err)
+		}
+
+		if result.ID != 1 {
+			t.Errorf("Expected user id to be %v, got %v", 1, result.ID)
+		}
+	})
+}
+
+func TestUserHandler_GetUsers(t *testing.T) {
+	t.Run("should get all users and return the array of users", func(t *testing.T) {
+		service := GetNewMockUserService()
+		handler := NewUserHandler(service)
+
+		result, err := handler.GetUsers()
+		if err != nil {
+			t.Errorf("Error getting users: %v", err)
+		}
+
+		if len(result) < 1 {
+			t.Errorf("Expected at least 1 user, got %v", len(result))
+		}
+	})
+}
