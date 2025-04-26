@@ -22,3 +22,15 @@ func (r *UserRepository) CreateUser(user UserDTO) (UserWithPassword, error) {
 
 	return r.Repository.Executor.QueryItem(query, user.FirstName, user.LastName, user.Email, user.Password)
 }
+
+func (r *UserRepository) GetUserById(id int) (UserWithPassword, error) {
+	query := "SELECT * FROM users WHERE id = $1"
+
+	return r.Repository.Executor.QueryItem(query, id)
+}
+
+func (r *UserRepository) GetUsers() ([]UserWithPassword, error) {
+	query := "SELECT * FROM users"
+
+	return r.Repository.Executor.QueryList(query)
+}
