@@ -3,7 +3,9 @@ package users
 import "cribeapp.com/cribe-server/internal/utils"
 
 type UserServiceInterface interface {
-	PostUser(user UserDTO) (User, *utils.ErrorResponse)
+	CreateUser(user UserDTO) (User, *utils.ErrorResponse)
+	GetUserById(id int) (User, *utils.ErrorResponse)
+	GetUsers() ([]User, *utils.ErrorResponse)
 }
 
 type UserService struct {
@@ -14,7 +16,7 @@ func NewUserService(repo UserRepository) *UserService {
 	return &UserService{repo: repo}
 }
 
-func (service *UserService) PostUser(user UserDTO) (User, *utils.ErrorResponse) {
+func (service *UserService) CreateUser(user UserDTO) (User, *utils.ErrorResponse) {
 	// Validate required fields
 	missingFields := utils.ValidateRequiredFields(
 		utils.ValidateRequiredField("first_name", user.FirstName),
@@ -42,4 +44,41 @@ func (service *UserService) PostUser(user UserDTO) (User, *utils.ErrorResponse) 
 		CreatedAt: result.CreatedAt,
 		UpdatedAt: result.UpdatedAt,
 	}, nil
+}
+
+func (service *UserService) GetUserById(id int) (User, *utils.ErrorResponse) {
+	result, err := service.repo.GetUserById(id)
+	if err != nil {
+		return User{}, utils.NewDatabaseError(err)
+	}
+
+	return User{
+		ID:        result.ID,
+		FirstName: result.FirstName,
+		LastName:  result.LastName,
+		Email:     result.Email,
+		CreatedAt: result.CreatedAt,
+		UpdatedAt: result.UpdatedAt,
+	}, nil
+}
+
+func (service *UserService) GetUsers() ([]User, *utils.ErrorResponse) {
+	result, err := service.repo.GetUsers()
+	if err != nil {
+		return nil, utils.NewDatabaseError(err)
+	}
+
+	users := make([]User, len(result))
+	for i, user := range result {
+		users[i] = User{
+			ID:        user.ID,
+			FirstName: user.FirstName,
+			LastName:  user.LastName,
+			Email:     user.Email,
+			CreatedAt: user.CreatedAt,
+			UpdatedAt: user.UpdatedAt,
+		}
+	}
+
+	return users, nil
 }

@@ -33,7 +33,7 @@ func TestUserService_CreateUser(t *testing.T) {
 			Password:  user.Password,
 		}
 
-		result, err := service.PostUser(userDTO)
+		result, err := service.CreateUser(userDTO)
 		if err != nil {
 			t.Errorf("Error creating user: %v", err)
 		}
@@ -75,9 +75,35 @@ func TestUserService_CreateUser(t *testing.T) {
 			LastName:  "Doe",
 		}
 
-		_, err := service.PostUser(userDTO)
+		_, err := service.CreateUser(userDTO)
 		if err == nil {
 			t.Errorf("Expected error, got nil")
+		}
+	})
+}
+
+func TestUserService_GetUserById(t *testing.T) {
+	t.Run("shouldn't get a user by id and return the error", func(t *testing.T) {
+		service := GetNewMockUserService()
+		_, err := service.GetUserById(0)
+
+		if err != nil && err.Message != "Database error" {
+			t.Errorf("Expected error message to be %v, got %v", "Database error", err.Message)
+		}
+	})
+}
+
+func TestUserService_GetUsers(t *testing.T) {
+	t.Run("should get all users and return the array of users", func(t *testing.T) {
+		service := GetNewMockUserService()
+		result, err := service.GetUsers()
+
+		if err != nil {
+			t.Errorf("Expected error, got nil")
+		}
+
+		if len(result) < 1 {
+			t.Errorf("Expected at least 1 user, got %v", len(result))
 		}
 	})
 }

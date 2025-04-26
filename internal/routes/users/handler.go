@@ -11,5 +11,5 @@ func NewUserHandler(service UserServiceInterface) *UserHandler {
 }
 
 func (handler *UserHandler) PostUser(user UserDTO) (User, *utils.ErrorResponse) {
-	return handler.service.PostUser(user)
+	return handler.service.CreateUser(user)
 }
