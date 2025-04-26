@@ -13,3 +13,11 @@ func NewUserHandler(service UserServiceInterface) *UserHandler {
 func (handler *UserHandler) PostUser(user UserDTO) (User, *utils.ErrorResponse) {
 	return handler.service.CreateUser(user)
 }
+
+func (handler *UserHandler) GetUserById(id int) (User, *utils.ErrorResponse) {
+	return handler.service.GetUserById(id)
+}
+
+func (handler *UserHandler) GetUsers() ([]User, *utils.ErrorResponse) {
+	return handler.service.GetUsers()
+}
