@@ -8,7 +8,7 @@ import (
 	"cribeapp.com/cribe-server/internal/utils"
 )
 
-func TestMigrations_GetIntegration(t *testing.T) {
+func TestMigrations_IntegrationTests(t *testing.T) {
 	log.Printf("Setting up test environment")
 	_ = utils.CleanDatabase()
 
@@ -26,10 +26,7 @@ func TestMigrations_GetIntegration(t *testing.T) {
 		t.Errorf("Expected at least one migration, got %d", len(resp.Body))
 	}
 
-}
-
-func TestMigrations_PostIntegration(t *testing.T) {
-	resp := utils.MustSendTestRequest[[]Migration](utils.TestRequest{
+	resp = utils.MustSendTestRequest[[]Migration](utils.TestRequest{
 		Method:      http.MethodPost,
 		URL:         "/migrations",
 		HandlerFunc: HandleHTTPRequests,
@@ -38,6 +35,7 @@ func TestMigrations_PostIntegration(t *testing.T) {
 	if resp.StatusCode != http.StatusCreated {
 		t.Errorf("Expected status code %d, got %d", http.StatusCreated, resp.StatusCode)
 	}
+
 	if len(resp.Body) == 0 {
 		t.Error("Expected at least one migration, got 0")
 	}

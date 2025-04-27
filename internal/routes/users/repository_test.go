@@ -68,7 +68,14 @@ func GetNewMockRepository() *UserRepository {
 				}
 			}
 
-			return users[0], nil
+			// Return the user with the matching email
+			for _, user := range users {
+				if user.Email == args[2].(string) {
+					return user, nil
+				}
+			}
+
+			return UserWithPassword{}, fmt.Errorf("user not found")
 		},
 		QueryListFunc: func(query string, args ...any) ([]UserWithPassword, error) {
 			return users, nil
