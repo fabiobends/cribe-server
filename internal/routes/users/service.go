@@ -1,12 +1,10 @@
 package users
 
-import "cribeapp.com/cribe-server/internal/utils"
+import (
+	"net/http"
 
-type UserServiceInterface interface {
-	CreateUser(user UserDTO) (User, *utils.ErrorResponse)
-	GetUserById(id int) (User, *utils.ErrorResponse)
-	GetUsers() ([]User, *utils.ErrorResponse)
-}
+	"cribeapp.com/cribe-server/internal/utils"
+)
 
 type UserService struct {
 	repo UserRepository
@@ -49,6 +47,9 @@ func (service *UserService) CreateUser(user UserDTO) (User, *utils.ErrorResponse
 func (service *UserService) GetUserById(id int) (User, *utils.ErrorResponse) {
 	result, err := service.repo.GetUserById(id)
 	if err != nil {
+		if err.Error() == "no rows in result set" {
+			return User{}, utils.NewErrorResponse(http.StatusNotFound, "User not found")
+		}
 		return User{}, utils.NewDatabaseError(err)
 	}
 

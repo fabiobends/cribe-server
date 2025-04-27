@@ -12,7 +12,7 @@ func DecodeBody[T any](r *http.Request) (T, *ErrorResponse) {
 
 	if err := json.NewDecoder(r.Body).Decode(&decodedBody); err != nil {
 		var zero T
-		return zero, NewErrorResponse("Invalid request body", err.Error())
+		return zero, NewErrorResponse(http.StatusBadRequest, "Invalid request body", err.Error())
 	}
 
 	return decodedBody, nil

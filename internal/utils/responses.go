@@ -5,6 +5,7 @@ type StandardResponse struct {
 }
 
 type ErrorResponse struct {
-	Message string   `json:"message"`
-	Details []string `json:"details"`
+	StatusCode int      `json:"status_code"`
+	Message    string   `json:"message"`
+	Details    []string `json:"details"`
 }
