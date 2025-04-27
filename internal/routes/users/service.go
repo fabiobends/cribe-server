@@ -15,16 +15,9 @@ func NewUserService(repo UserRepository) *UserService {
 }
 
 func (service *UserService) CreateUser(user UserDTO) (User, *utils.ErrorResponse) {
-	// Validate required fields
-	missingFields := utils.ValidateRequiredFields(
-		utils.ValidateRequiredField("first_name", user.FirstName),
-		utils.ValidateRequiredField("last_name", user.LastName),
-		utils.ValidateRequiredField("email", user.Email),
-		utils.ValidateRequiredField("password", user.Password),
-	)
-
-	if len(missingFields) > 0 {
-		return User{}, utils.NewValidationError(missingFields...)
+	// Validate using domain validation
+	if err := user.Validate(); err != nil {
+		return User{}, err
 	}
 
 	// Create user in repository
@@ -33,15 +26,8 @@ func (service *UserService) CreateUser(user UserDTO) (User, *utils.ErrorResponse
 		return User{}, utils.NewDatabaseError(err)
 	}
 
-	// Return user without password
-	return User{
-		ID:        result.ID,
-		FirstName: result.FirstName,
-		LastName:  result.LastName,
-		Email:     result.Email,
-		CreatedAt: result.CreatedAt,
-		UpdatedAt: result.UpdatedAt,
-	}, nil
+	// Return sanitized user without sensitive data
+	return service.sanitizeUser(result), nil
 }
 
 func (service *UserService) GetUserById(id int) (User, *utils.ErrorResponse) {
@@ -53,14 +39,7 @@ func (service *UserService) GetUserById(id int) (User, *utils.ErrorResponse) {
 		return User{}, utils.NewDatabaseError(err)
 	}
 
-	return User{
-		ID:        result.ID,
-		FirstName: result.FirstName,
-		LastName:  result.LastName,
-		Email:     result.Email,
-		CreatedAt: result.CreatedAt,
-		UpdatedAt: result.UpdatedAt,
-	}, nil
+	return service.sanitizeUser(result), nil
 }
 
 func (service *UserService) GetUsers() ([]User, *utils.ErrorResponse) {
@@ -71,15 +50,20 @@ func (service *UserService) GetUsers() ([]User, *utils.ErrorResponse) {
 
 	users := make([]User, len(result))
 	for i, user := range result {
-		users[i] = User{
-			ID:        user.ID,
-			FirstName: user.FirstName,
-			LastName:  user.LastName,
-			Email:     user.Email,
-			CreatedAt: user.CreatedAt,
-			UpdatedAt: user.UpdatedAt,
-		}
+		users[i] = service.sanitizeUser(user)
 	}
 
 	return users, nil
+}
+
+// sanitizeUser removes sensitive data from the user object
+func (service *UserService) sanitizeUser(user UserWithPassword) User {
+	return User{
+		ID:        user.ID,
+		FirstName: user.FirstName,
+		LastName:  user.LastName,
+		Email:     user.Email,
+		CreatedAt: user.CreatedAt,
+		UpdatedAt: user.UpdatedAt,
+	}
 }

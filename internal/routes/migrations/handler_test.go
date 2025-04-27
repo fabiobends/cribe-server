@@ -2,6 +2,8 @@ package migrations
 
 import (
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"cribeapp.com/cribe-server/internal/utils"
@@ -24,7 +26,12 @@ func TestMigrationsHandler_GetMigrations(t *testing.T) {
 		},
 	}
 
-	result := handler.GetMigrations()
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodGet, "/migrations", nil)
+
+	handler.HandleRequest(w, r)
+
+	result := utils.DecodeResponse[[]Migration](w.Body.String())
 
 	if fmt.Sprint(result) != fmt.Sprint(expected) {
 		t.Errorf("expected %q, got %q", expected, result)
@@ -37,7 +44,12 @@ func TestMigrationsHandler_PostMigrations(t *testing.T) {
 	handler := NewMigrationHandler(service)
 
 	// First run
-	firstResult := handler.PostMigrations()
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodPost, "/migrations", nil)
+
+	handler.HandleRequest(w, r)
+
+	firstResult := utils.DecodeResponse[[]Migration](w.Body.String())
 	firstExpected := []Migration{
 		{
 			ID:        2,
@@ -56,7 +68,12 @@ func TestMigrationsHandler_PostMigrations(t *testing.T) {
 	}
 
 	// Second run
-	secondResult := handler.PostMigrations()
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest(http.MethodPost, "/migrations", nil)
+
+	handler.HandleRequest(w, r)
+
+	secondResult := utils.DecodeResponse[[]Migration](w.Body.String())
 	secondExpected := []Migration{}
 
 	if fmt.Sprint(secondResult) != fmt.Sprint(secondExpected) {

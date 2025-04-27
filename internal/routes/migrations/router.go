@@ -59,21 +59,5 @@ func HandleHTTPRequests(w http.ResponseWriter, r *http.Request) {
 	service := NewMigrationService(MigrationService{repo: *repo, filesReader: filesReader, getCurrentTime: time.Now, migrationsManager: migrationsManager})
 	handler := NewMigrationHandler(service)
 
-	if r.Method == http.MethodGet {
-		migrations := handler.GetMigrations()
-		utils.EncodeResponse(w, http.StatusOK, migrations)
-		return
-	}
-
-	if r.Method == http.MethodPost {
-		migrations := handler.PostMigrations()
-		if len(migrations) > 0 {
-			utils.EncodeResponse(w, http.StatusCreated, migrations)
-		} else {
-			utils.EncodeResponse(w, http.StatusOK, migrations)
-		}
-		return
-	}
-
-	utils.NotAllowed(w)
+	handler.HandleRequest(w, r)
 }

@@ -1,6 +1,8 @@
 package status
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"cribeapp.com/cribe-server/internal/utils"
@@ -25,6 +27,11 @@ func TestStatusHandler_GetStatus(t *testing.T) {
 	service := &MockService{}
 	handler := NewStatusHandler(service)
 
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodGet, "/status", nil)
+
+	handler.HandleRequest(w, r)
+
 	expected := GetStatusResponse{
 		UpdatedAt: utils.MockGetCurrentTimeISO(),
 		Dependencies: Dependencies{
@@ -36,7 +43,7 @@ func TestStatusHandler_GetStatus(t *testing.T) {
 		},
 	}
 
-	result := handler.GetStatus()
+	result := utils.DecodeResponse[GetStatusResponse](w.Body.String())
 
 	if result != expected {
 		t.Errorf("expected %q, got %q", expected, result)
