@@ -29,6 +29,12 @@ func (r *UserRepository) GetUserById(id int) (UserWithPassword, error) {
 	return r.Repository.Executor.QueryItem(query, id)
 }
 
+func (r *UserRepository) GetUserByEmail(email string) (UserWithPassword, error) {
+	query := "SELECT * FROM users WHERE email = $1"
+
+	return r.Repository.Executor.QueryItem(query, email)
+}
+
 func (r *UserRepository) GetUsers() ([]UserWithPassword, error) {
 	query := "SELECT * FROM users"
 

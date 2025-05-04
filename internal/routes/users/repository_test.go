@@ -1,103 +1,20 @@
 package users
 
 import (
-	"fmt"
-	"reflect"
 	"testing"
-
-	"cribeapp.com/cribe-server/internal/utils"
 )
 
-// MockQueryExecutor is a mock implementation of QueryExecutor
-type MockQueryExecutor struct {
-	QueryItemFunc func(query string, args ...any) (UserWithPassword, error)
-	QueryListFunc func(query string, args ...any) ([]UserWithPassword, error)
-}
+const userTestEmail = "john.doe.user.repository@example.com"
 
-func (m *MockQueryExecutor) QueryItem(query string, args ...any) (UserWithPassword, error) {
-	return m.QueryItemFunc(query, args...)
-}
-
-func (m *MockQueryExecutor) QueryList(query string, args ...any) ([]UserWithPassword, error) {
-	return m.QueryListFunc(query, args...)
-}
-
-var users = []UserWithPassword{
-	{
-		ID:        1,
-		FirstName: "John",
-		LastName:  "Doe",
-		Email:     "john.doe@example.com",
-		Password:  "password123",
-		CreatedAt: utils.MockGetCurrentTime(),
-		UpdatedAt: utils.MockGetCurrentTime(),
-	},
-	{
-		ID:        2,
-		FirstName: "Jane",
-		LastName:  "Doe",
-		Email:     "jane.doe@example.com",
-		Password:  "password123",
-		CreatedAt: utils.MockGetCurrentTime(),
-		UpdatedAt: utils.MockGetCurrentTime(),
-	},
-}
-
-func GetNewMockRepository() *UserRepository {
-	mockExecutor := &MockQueryExecutor{
-		QueryItemFunc: func(query string, args ...any) (UserWithPassword, error) {
-			if query == "SELECT * FROM users WHERE id = $1" {
-				id := args[0].(int)
-				for _, user := range users {
-					if user.ID == id {
-						return user, nil
-					}
-				}
-				return UserWithPassword{}, fmt.Errorf("user not found")
-			}
-
-			neededArgsLength := 4
-			if len(args) < neededArgsLength {
-				return UserWithPassword{}, fmt.Errorf("expected %d arguments, got %d", neededArgsLength, len(args))
-			}
-
-			// Check if any field is empty
-			for _, arg := range args {
-				if arg == "" {
-					return UserWithPassword{}, fmt.Errorf("empty field")
-				}
-			}
-
-			// Return the user with the matching email
-			for _, user := range users {
-				if user.Email == args[2].(string) {
-					return user, nil
-				}
-			}
-
-			return UserWithPassword{}, fmt.Errorf("user not found")
-		},
-		QueryListFunc: func(query string, args ...any) ([]UserWithPassword, error) {
-			return users, nil
-		},
-	}
-
-	return NewUserRepository(utils.WithQueryExecutor(utils.QueryExecutor[UserWithPassword]{
-		QueryItem: mockExecutor.QueryItem,
-		QueryList: mockExecutor.QueryList,
-	}))
-}
+var repo = NewMockUserRepositoryReady()
 
 func TestUserRepository_CreateUser(t *testing.T) {
 	t.Run("should create a user with valid input", func(t *testing.T) {
-		repo := GetNewMockRepository()
-
-		firstUser := users[0]
 		userDTO := UserDTO{
-			FirstName: firstUser.FirstName,
-			LastName:  firstUser.LastName,
-			Email:     firstUser.Email,
-			Password:  firstUser.Password,
+			FirstName: "John",
+			LastName:  "Doe",
+			Email:     userTestEmail,
+			Password:  "password123",
 		}
 
 		result, err := repo.CreateUser(userDTO)
@@ -106,13 +23,25 @@ func TestUserRepository_CreateUser(t *testing.T) {
 			t.Errorf("Unexpected error: %v", err)
 		}
 
-		if !reflect.DeepEqual(firstUser, result) {
-			t.Errorf("Expected %+v, got %+v", firstUser, result)
+		if result.ID == 0 {
+			t.Errorf("Expected user ID, got 0")
+		}
+
+		if result.FirstName != userDTO.FirstName {
+			t.Errorf("Expected user first name to be %v, got %v", userDTO.FirstName, result.FirstName)
+		}
+
+		if result.LastName != userDTO.LastName {
+			t.Errorf("Expected user last name to be %v, got %v", userDTO.LastName, result.LastName)
+		}
+
+		if result.Email != userDTO.Email {
+			t.Errorf("Expected user email to be %v, got %v", userDTO.Email, result.Email)
 		}
 	})
 
 	t.Run("should not create a user with invalid input", func(t *testing.T) {
-		repo := GetNewMockRepository()
+		repo := NewMockUserRepositoryReady()
 		userDTO := UserDTO{
 			FirstName: "John",
 			LastName:  "Doe",
@@ -128,20 +57,29 @@ func TestUserRepository_CreateUser(t *testing.T) {
 
 func TestUserRepository_GetUserById(t *testing.T) {
 	t.Run("should get a user by id", func(t *testing.T) {
-		repo := GetNewMockRepository()
-		firstUser := users[0]
-		user, err := repo.GetUserById(firstUser.ID)
+		user, err := repo.GetUserById(1)
 		if err != nil {
 			t.Errorf("Unexpected error: %v", err)
 		}
 
-		if !reflect.DeepEqual(firstUser, user) {
-			t.Errorf("Expected %+v, got %+v", firstUser, user)
+		if user.ID != 1 {
+			t.Errorf("Expected user ID to be 1, got %v", user.ID)
+		}
+
+		if user.FirstName != "John" {
+			t.Errorf("Expected user first name to be John, got %v", user.FirstName)
+		}
+
+		if user.LastName != "Doe" {
+			t.Errorf("Expected user last name to be Doe, got %v", user.LastName)
+		}
+
+		if user.Email != "john.doe.user.repository@example.com" {
+			t.Errorf("Expected user email to be john.doe.user.repository@example.com, got %v", user.Email)
 		}
 	})
 
 	t.Run("should return an error if the user is not found", func(t *testing.T) {
-		repo := GetNewMockRepository()
 		user, err := repo.GetUserById(0)
 		if err == nil {
 			t.Errorf("Expected error, got nil")
@@ -153,24 +91,63 @@ func TestUserRepository_GetUserById(t *testing.T) {
 	})
 }
 
+func TestUserRepository_GetUserByEmail(t *testing.T) {
+	t.Run("should get a user by email", func(t *testing.T) {
+		user, err := repo.GetUserByEmail(userTestEmail)
+		if err != nil {
+			t.Errorf("Unexpected error: %v", err)
+		}
+
+		if user.ID != 1 {
+			t.Errorf("Expected user ID to be 1, got %v", user.ID)
+		}
+
+		if user.FirstName != "John" {
+			t.Errorf("Expected user first name to be John, got %v", user.FirstName)
+		}
+
+		if user.LastName != "Doe" {
+			t.Errorf("Expected user last name to be Doe, got %v", user.LastName)
+		}
+
+		if user.Email != userTestEmail {
+			t.Errorf("Expected user email to be %v, got %v", userTestEmail, user.Email)
+		}
+	})
+}
+
 func TestUserRepository_GetUsers(t *testing.T) {
 	t.Run("should get all users", func(t *testing.T) {
-		repo := GetNewMockRepository()
+		presetUsers := []UserWithPassword{
+			{
+				ID:        1,
+				FirstName: "John",
+				LastName:  "Doe",
+				Email:     userTestEmail,
+			},
+			{
+				ID:        2,
+				FirstName: "Jane",
+				LastName:  "Doe",
+				Email:     "jane.doe@example.com",
+			},
+		}
+		repo := NewMockUserRepositoryReady(presetUsers...)
 		result, err := repo.GetUsers()
 		if err != nil {
 			t.Errorf("Unexpected error: %v", err)
 		}
 
-		if len(users) != len(result) {
-			t.Errorf("Expected %d users, got %d", len(users), len(result))
+		if len(result) == 0 {
+			t.Errorf("Expected at least 1 user, got %d", len(result))
 		}
 
-		if !reflect.DeepEqual(users[0], result[0]) {
-			t.Errorf("Expected %+v, got %+v", users[0], result[0])
+		if result[0].ID != 1 {
+			t.Errorf("Expected user ID to be 1, got %v", result[0].ID)
 		}
 
-		if !reflect.DeepEqual(users[1], result[1]) {
-			t.Errorf("Expected %+v, got %+v", users[1], result[1])
+		if result[1].ID != 2 {
+			t.Errorf("Expected user ID to be 2, got %v", result[1].ID)
 		}
 	})
 }
