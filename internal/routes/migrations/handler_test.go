@@ -9,10 +9,9 @@ import (
 	"cribeapp.com/cribe-server/internal/utils"
 )
 
-func TestMigrationsHandler_GetMigrations(t *testing.T) {
-	service := GetNewMockMigrationService()
-	handler := NewMigrationHandler(service)
+var handler = NewMockMigrationHandlerReady()
 
+func TestMigrationsHandler_GetMigrations(t *testing.T) {
 	expected := []Migration{
 		{
 			ID:        2,
@@ -40,9 +39,6 @@ func TestMigrationsHandler_GetMigrations(t *testing.T) {
 }
 
 func TestMigrationsHandler_PostMigrations(t *testing.T) {
-	service := GetNewMockMigrationService()
-	handler := NewMigrationHandler(service)
-
 	// First run
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodPost, "/migrations", nil)

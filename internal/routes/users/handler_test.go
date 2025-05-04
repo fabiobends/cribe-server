@@ -10,15 +10,14 @@ import (
 	"cribeapp.com/cribe-server/internal/utils"
 )
 
+var handler = NewMockUserHandlerReady()
+
 func TestUserHandler_HandleRequest(t *testing.T) {
 	t.Run("should create a user with valid input and return the user", func(t *testing.T) {
-		service := GetNewMockUserService()
-		handler := NewUserHandler(service)
-
 		userDTO := UserDTO{
 			FirstName: "John",
 			LastName:  "Doe",
-			Email:     "john.doe@example.com",
+			Email:     "john.doe.user.handler@example.com",
 			Password:  "password123",
 		}
 
@@ -40,9 +39,6 @@ func TestUserHandler_HandleRequest(t *testing.T) {
 	})
 
 	t.Run("should return validation errors for invalid input", func(t *testing.T) {
-		service := GetNewMockUserService()
-		handler := NewUserHandler(service)
-
 		userDTO := UserDTO{
 			FirstName: "John",
 			// Missing LastName
@@ -68,9 +64,6 @@ func TestUserHandler_HandleRequest(t *testing.T) {
 	})
 
 	t.Run("should get a user by id", func(t *testing.T) {
-		service := GetNewMockUserService()
-		handler := NewUserHandler(service)
-
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/users/1", nil)
 
@@ -88,9 +81,6 @@ func TestUserHandler_HandleRequest(t *testing.T) {
 	})
 
 	t.Run("should get all users", func(t *testing.T) {
-		service := GetNewMockUserService()
-		handler := NewUserHandler(service)
-
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/users", nil)
 
@@ -108,9 +98,6 @@ func TestUserHandler_HandleRequest(t *testing.T) {
 	})
 
 	t.Run("should return 405 for unsupported method", func(t *testing.T) {
-		service := GetNewMockUserService()
-		handler := NewUserHandler(service)
-
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPut, "/users", nil)
 

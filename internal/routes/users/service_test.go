@@ -7,10 +7,7 @@ import (
 	"cribeapp.com/cribe-server/internal/utils"
 )
 
-func GetNewMockUserService() *UserService {
-	repository := GetNewMockRepository()
-	return NewUserService(*repository)
-}
+var service = NewMockUserServiceReady()
 
 func TestUserService_CreateUser(t *testing.T) {
 	t.Run("should create a user with valid input and return the user", func(t *testing.T) {
@@ -18,13 +15,11 @@ func TestUserService_CreateUser(t *testing.T) {
 			ID:        1,
 			FirstName: "John",
 			LastName:  "Doe",
-			Email:     "john.doe@example.com",
+			Email:     "john.doe.user.service@example.com",
 			Password:  "password123",
 			CreatedAt: utils.MockGetCurrentTime(),
 			UpdatedAt: utils.MockGetCurrentTime(),
 		}
-
-		service := GetNewMockUserService()
 
 		userDTO := UserDTO{
 			FirstName: user.FirstName,
@@ -69,7 +64,6 @@ func TestUserService_CreateUser(t *testing.T) {
 	})
 
 	t.Run("should not create a user with invalid input", func(t *testing.T) {
-		service := GetNewMockUserService()
 		userDTO := UserDTO{
 			FirstName: "John",
 			LastName:  "Doe",
@@ -84,7 +78,6 @@ func TestUserService_CreateUser(t *testing.T) {
 
 func TestUserService_GetUserById(t *testing.T) {
 	t.Run("shouldn't get a user by id and return the error", func(t *testing.T) {
-		service := GetNewMockUserService()
 		_, err := service.GetUserById(0)
 
 		if err != nil && err.Message != "Database error" {
@@ -95,7 +88,6 @@ func TestUserService_GetUserById(t *testing.T) {
 
 func TestUserService_GetUsers(t *testing.T) {
 	t.Run("should get all users and return the array of users", func(t *testing.T) {
-		service := GetNewMockUserService()
 		result, err := service.GetUsers()
 
 		if err != nil {

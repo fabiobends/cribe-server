@@ -6,64 +6,8 @@ import (
 	"cribeapp.com/cribe-server/internal/utils"
 )
 
-type SpyQueryExecutor struct {
-	ExecCalledWith                []any
-	HasExecBeenCalledSuccessfully bool
-}
-
-func MockExec(query string, args ...any) error {
-	return nil
-}
-
-func (s *SpyQueryExecutor) Exec(query string, args ...any) error {
-	s.ExecCalledWith = append([]any{query}, args...)
-	err := MockExec(query, args...)
-
-	if err == nil {
-		s.HasExecBeenCalledSuccessfully = true
-	}
-
-	return err
-}
-
-func (s *SpyQueryExecutor) QueryItemWithPopulatedDatabase(query string, args ...any) (Migration, error) {
-	if s.HasExecBeenCalledSuccessfully {
-		return Migration{
-			ID:        1,
-			Name:      "000002_second",
-			CreatedAt: utils.MockGetCurrentTime(),
-		}, nil
-	}
-	return Migration{
-		ID:        1,
-		Name:      "000001_initial",
-		CreatedAt: utils.MockGetCurrentTime(),
-	}, nil
-}
-
-func (s *SpyQueryExecutor) QueryItemWithEmptyDatabase(query string, args ...any) (Migration, error) {
-	if s.HasExecBeenCalledSuccessfully {
-		return Migration{
-			ID:        1,
-			Name:      "000002_second",
-			CreatedAt: utils.MockGetCurrentTime(),
-		}, nil
-	}
-	return Migration{}, nil
-}
-
-func GetNewMockMigrationRepoWithEmptyDatabase() MigrationRepository {
-	spy := SpyQueryExecutor{}
-	return *NewMigrationRepository(WithQueryExecutor(QueryExecutor{QueryItem: spy.QueryItemWithEmptyDatabase, Exec: spy.Exec}))
-}
-
-func GetNewMockMigrationRepoWithPopulatedDatabase() MigrationRepository {
-	spy := SpyQueryExecutor{}
-	return *NewMigrationRepository(WithQueryExecutor(QueryExecutor{QueryItem: spy.QueryItemWithPopulatedDatabase, Exec: MockExec}))
-}
-
 func TestMigrationRepository_GetLastMigration(t *testing.T) {
-	repo := GetNewMockMigrationRepoWithPopulatedDatabase()
+	repo := NewMockMigrationRepoWithPopulatedDatabase()
 	expected := Migration{
 		ID:        1,
 		Name:      "000001_initial",
