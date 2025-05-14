@@ -10,8 +10,8 @@ import (
 
 type MockService struct{}
 
-func (m *MockService) GetStatus() GetStatusResponse {
-	return GetStatusResponse{
+func (m *MockService) GetStatus() StatusInfo {
+	return StatusInfo{
 		UpdatedAt: utils.MockGetCurrentTimeISO(),
 		Dependencies: Dependencies{
 			Database: DatabaseInfo{
@@ -32,7 +32,7 @@ func TestStatusHandler_GetStatus(t *testing.T) {
 
 	handler.HandleRequest(w, r)
 
-	expected := GetStatusResponse{
+	expected := StatusInfo{
 		UpdatedAt: utils.MockGetCurrentTimeISO(),
 		Dependencies: Dependencies{
 			Database: DatabaseInfo{
@@ -43,7 +43,7 @@ func TestStatusHandler_GetStatus(t *testing.T) {
 		},
 	}
 
-	result := utils.DecodeResponse[GetStatusResponse](w.Body.String())
+	result := utils.DecodeResponse[StatusInfo](w.Body.String())
 
 	if result != expected {
 		t.Errorf("expected %q, got %q", expected, result)

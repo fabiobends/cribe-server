@@ -17,6 +17,12 @@ type JWTObject struct {
 	Typ    string `json:"typ"`
 }
 
+type JWTClaims struct {
+	UserID int    `json:"user_id"`
+	Typ    string `json:"typ"`
+	jwt.RegisteredClaims
+}
+
 type TokenService interface {
 	GenerateHash(text string) (string, error)
 	CompareHashAndPassword(hashedPassword, password string) error
@@ -72,7 +78,7 @@ func (s *TokenServiceImpl) CompareHashAndPassword(hashedPassword, password strin
 }
 
 func (s *TokenServiceImpl) ValidateToken(accessToken string) (*JWTObject, error) {
-	token, err := jwt.Parse(accessToken, func(token *jwt.Token) (any, error) {
+	token, err := jwt.ParseWithClaims(accessToken, &JWTClaims{}, func(token *jwt.Token) (any, error) {
 		// Validate the signing method
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, jwt.ErrSignatureInvalid
@@ -88,34 +94,44 @@ func (s *TokenServiceImpl) ValidateToken(accessToken string) (*JWTObject, error)
 		return nil, errors.New("Invalid token")
 	}
 
-	claims, ok := token.Claims.(jwt.MapClaims)
+	claims, ok := token.Claims.(*JWTClaims)
 	if !ok {
-		return nil, errors.New("Invalid token")
+		return nil, errors.New("Invalid token claims")
 	}
 
 	return &JWTObject{
-		UserID: claims["user_id"].(int),
-		Exp:    claims["exp"].(int64),
-		Typ:    claims["typ"].(string),
+		UserID: claims.UserID,
+		Exp:    claims.ExpiresAt.Unix(),
+		Typ:    claims.Typ,
 	}, nil
 }
 
 func (s *TokenServiceImpl) GetAccessToken(userID int) (string, error) {
-	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user_id": userID,
-		"exp":     s.currentTime().Add(s.accessTokenExpiration).Unix(),
-		"typ":     "access",
-	})
+	now := s.currentTime()
+	claims := &JWTClaims{
+		UserID: userID,
+		Typ:    "access",
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(now.Add(s.accessTokenExpiration)),
+			IssuedAt:  jwt.NewNumericDate(now),
+		},
+	}
 
-	return accessToken.SignedString(s.secretKey)
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(s.secretKey)
 }
 
 func (s *TokenServiceImpl) GetRefreshToken(userID int) (string, error) {
-	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user_id": userID,
-		"exp":     s.currentTime().Add(s.refreshTokenExpiration).Unix(),
-		"typ":     "refresh",
-	})
+	now := s.currentTime()
+	claims := &JWTClaims{
+		UserID: userID,
+		Typ:    "refresh",
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(now.Add(s.refreshTokenExpiration)),
+			IssuedAt:  jwt.NewNumericDate(now),
+		},
+	}
 
-	return refreshToken.SignedString(s.secretKey)
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(s.secretKey)
 }

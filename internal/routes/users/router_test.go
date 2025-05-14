@@ -24,8 +24,8 @@ func TestUsers_IntegrationTests(t *testing.T) {
 			t.Errorf("Expected status code %d, got %d", http.StatusNotFound, resp.StatusCode)
 		}
 
-		if resp.Body.Message != "User not found" {
-			t.Errorf("Expected message %s, got %s", "User not found", resp.Body.Message)
+		if resp.Body.Message != utils.UserNotFound {
+			t.Errorf("Expected message %s, got %s", utils.UserNotFound, resp.Body.Message)
 		}
 
 	})
@@ -41,8 +41,8 @@ func TestUsers_IntegrationTests(t *testing.T) {
 			t.Errorf("Expected status code %d, got %d", http.StatusBadRequest, resp.StatusCode)
 		}
 
-		if resp.Body.Message != "Invalid id parameter" {
-			t.Errorf("Expected message %s, got %s", "Invalid id parameter", resp.Body.Message)
+		if resp.Body.Message != utils.InvalidIdParameter {
+			t.Errorf("Expected message %s, got %s", utils.InvalidIdParameter, resp.Body.Message)
 		}
 	})
 
@@ -64,8 +64,8 @@ func TestUsers_IntegrationTests(t *testing.T) {
 			t.Errorf("Expected status code %d, got %d", http.StatusBadRequest, resp.StatusCode)
 		}
 
-		if resp.Body.Message != "Missing required fields" {
-			t.Errorf("Expected message %s, got %s", "Missing required fields", resp.Body.Message)
+		if resp.Body.Message != utils.ValidationError {
+			t.Errorf("Expected message %s, got %s", utils.ValidationError, resp.Body.Message)
 		}
 	})
 

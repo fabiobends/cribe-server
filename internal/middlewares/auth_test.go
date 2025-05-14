@@ -18,13 +18,9 @@ func TestAuthMiddleware(t *testing.T) {
 		request.Header.Set("Authorization", "Bearer "+accessToken)
 		response := httptest.NewRecorder()
 
-		r, ok := AuthMiddleware(response, request, tokenService)
-		if !ok {
-			t.Errorf("Expected true, got false")
-		}
-		userID := r.Context().Value(UserIDContextKey)
-		if userID == nil {
-			t.Errorf("Expected user_id in request context, got nil")
+		token, _ := AuthMiddleware(response, request, tokenService)
+		if token == nil {
+			t.Errorf("Expected a token object, got nil")
 		}
 	})
 
@@ -36,12 +32,9 @@ func TestAuthMiddleware(t *testing.T) {
 		request.Header.Set("Authorization", "Bearer "+accessToken+"invalid")
 		response := httptest.NewRecorder()
 
-		r, ok := AuthMiddleware(response, request, tokenService)
-		if ok {
-			t.Errorf("Expected false, got true")
-		}
-		if r != nil {
-			t.Errorf("Expected nil request context, got non-nil")
+		token, _ := AuthMiddleware(response, request, tokenService)
+		if token != nil {
+			t.Errorf("Expected nil, got a token object")
 		}
 	})
 
@@ -54,9 +47,9 @@ func TestAuthMiddleware(t *testing.T) {
 		request.Header.Set("Authorization", "Bearer "+accessToken)
 		response := httptest.NewRecorder()
 
-		_, ok := AuthMiddleware(response, request, tokenService)
-		if ok {
-			t.Errorf("Expected false, got true")
+		token, _ := AuthMiddleware(response, request, tokenService)
+		if token != nil {
+			t.Errorf("Expected nil, got a token object")
 		}
 	})
 }

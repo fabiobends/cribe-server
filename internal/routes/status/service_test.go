@@ -29,7 +29,7 @@ func TestStatusService_GetStatus(t *testing.T) {
 	repo := NewStatusRepository(WithQueryExecutor(mockExecutor))
 	service := NewStatusService(*repo, utils.MockGetCurrentTime)
 
-	expected := GetStatusResponse{
+	expected := StatusInfo{
 		UpdatedAt: utils.MockGetCurrentTimeISO(),
 		Dependencies: Dependencies{
 			Database: DatabaseInfo{

@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"cribeapp.com/cribe-server/internal/middlewares"
+	"cribeapp.com/cribe-server/internal/routes/auth"
 	"cribeapp.com/cribe-server/internal/routes/migrations"
 	"cribeapp.com/cribe-server/internal/routes/status"
 	"cribeapp.com/cribe-server/internal/routes/users"
@@ -17,9 +18,10 @@ type Response struct {
 func Handler(port string) error {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/status", status.HandleHTTPRequests)
+	mux.HandleFunc("/auth/", auth.HandleHTTPRequests)
 	mux.HandleFunc("/migrations", migrations.HandleHTTPRequests)
-	mux.HandleFunc("/users", users.HandleHTTPRequests)
+	mux.HandleFunc("/status/", status.HandleHTTPRequests)
+	mux.HandleFunc("/users/", users.HandleHTTPRequests)
 	mux.HandleFunc("/", utils.NotFound)
 
 	muxWithMiddleware := middlewares.MainMiddleware(mux)

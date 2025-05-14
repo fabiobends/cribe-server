@@ -103,8 +103,8 @@ func TestAuthRouter_IntegrationTests(t *testing.T) {
 		}
 
 		response := utils.DecodeResponse[utils.ErrorResponse](w.Body.String())
-		if response.Message != "Invalid refresh token" {
-			t.Errorf("Expected message to be 'Invalid refresh token', got %v", response.Message)
+		if response.Message != utils.InvalidRequestBody {
+			t.Errorf("Expected message to be %s, got %v", utils.InvalidRequestBody, response.Message)
 		}
 	})
 

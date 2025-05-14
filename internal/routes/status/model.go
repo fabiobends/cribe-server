@@ -6,7 +6,7 @@ type DatabaseInfo struct {
 	OpenedConnections int16  `json:"opened_connections"`
 }
 
-type GetStatusResponse struct {
+type StatusInfo struct {
 	UpdatedAt    string       `json:"updated_at"`
 	Dependencies Dependencies `json:"dependencies"`
 }

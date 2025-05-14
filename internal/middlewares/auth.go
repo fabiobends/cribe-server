@@ -1,7 +1,7 @@
 package middlewares
 
 import (
-	"context"
+	"log"
 	"net/http"
 	"strings"
 
@@ -14,18 +14,25 @@ type contextUserIDKey string
 
 const UserIDContextKey = contextUserIDKey("user_id")
 
-func AuthMiddleware(w http.ResponseWriter, r *http.Request, tokenService auth.TokenService) (*http.Request, bool) {
+func AuthMiddleware(w http.ResponseWriter, r *http.Request, tokenService auth.TokenService) (*auth.JWTObject, *utils.ErrorResponse) {
+	// Check if the path is a private route
+	log.Println("Requested path", r.URL.Path)
+
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {
-		utils.NewErrorResponse(http.StatusUnauthorized, "Missing authorization header")
-		return nil, false
+		return nil, &utils.ErrorResponse{
+			Message: utils.InvalidAuthorizationHeader,
+			Details: "You are not authorized to access this resource",
+		}
 	}
 
 	// Check if the header is in the format "Bearer <token>"
 	parts := strings.Split(authHeader, " ")
 	if len(parts) != 2 || parts[0] != "Bearer" {
-		utils.NewErrorResponse(http.StatusUnauthorized, "Invalid authorization header format")
-		return nil, false
+		return nil, &utils.ErrorResponse{
+			Message: utils.InvalidAuthorizationHeader,
+			Details: "The authorization header is not in the correct format",
+		}
 	}
 
 	tokenString := parts[1]
@@ -34,14 +41,11 @@ func AuthMiddleware(w http.ResponseWriter, r *http.Request, tokenService auth.To
 	token, err := tokenService.ValidateToken(tokenString)
 
 	if token == nil || err != nil || token.Typ != "access" {
-		utils.NewErrorResponse(http.StatusUnauthorized, "Invalid token")
-		return nil, false
+		return nil, &utils.ErrorResponse{
+			Message: utils.InvalidAuthorizationHeader,
+			Details: "The token is invalid",
+		}
 	}
 
-	// Add the user ID to the request context
-	ctx := r.Context()
-	ctx = context.WithValue(ctx, UserIDContextKey, token.UserID)
-	r = r.WithContext(ctx)
-
-	return r, true
+	return token, nil
 }

@@ -62,7 +62,10 @@ func (dto UserDTO) Validate() *utils.ErrorResponse {
 	}
 
 	if len(errors) > 0 {
-		return utils.NewValidationError(errors...)
+		return &utils.ErrorResponse{
+			Message: utils.ValidationError,
+			Details: strings.Join(errors, ", "),
+		}
 	}
 
 	return nil

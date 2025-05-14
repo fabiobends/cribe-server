@@ -1,7 +1,9 @@
 package migrations
 
 import (
+	"log"
 	"net/http"
+	"strings"
 
 	"cribeapp.com/cribe-server/internal/utils"
 )
@@ -15,6 +17,13 @@ func NewMigrationHandler(service MigrationServiceInterface) *MigrationHandler {
 }
 
 func (handler *MigrationHandler) HandleRequest(w http.ResponseWriter, r *http.Request) {
+	paths := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	log.Println("Path length", len(paths))
+	if len(paths) > 1 {
+		log.Println("Has extra path, so it is an invalid route")
+		utils.NotFound(w, r)
+		return
+	}
 	switch r.Method {
 	case http.MethodGet:
 		handler.handleGet(w, r)
