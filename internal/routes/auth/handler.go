@@ -1,7 +1,9 @@
 package auth
 
 import (
+	"log"
 	"net/http"
+	"slices"
 	"strings"
 
 	"cribeapp.com/cribe-server/internal/routes/users"
@@ -17,6 +19,13 @@ func NewAuthHandler(service *AuthService) *AuthHandler {
 }
 
 func (handler *AuthHandler) HandleRequest(w http.ResponseWriter, r *http.Request) {
+	paths := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	validPaths := []string{"refresh", "register", "login"}
+	if len(paths) == 1 || len(paths) > 1 && !slices.Contains(validPaths, paths[1]) {
+		log.Println("Invalid path", r.URL.Path)
+		utils.NotFound(w, r)
+		return
+	}
 	switch r.Method {
 	case http.MethodPost:
 		handler.handlePost(w, r)
@@ -32,12 +41,12 @@ func (handler *AuthHandler) handlePost(w http.ResponseWriter, r *http.Request) {
 	if path == "register" {
 		userDTO, err := utils.DecodeBody[users.UserDTO](r)
 		if err != nil {
-			utils.EncodeResponse(w, err.StatusCode, err)
+			utils.EncodeResponse(w, http.StatusBadRequest, err)
 			return
 		}
 		err = userDTO.Validate()
 		if err != nil {
-			utils.EncodeResponse(w, err.StatusCode, err)
+			utils.EncodeResponse(w, http.StatusBadRequest, err)
 			return
 		}
 		response, err := handler.service.Register(userDTO)
@@ -52,12 +61,12 @@ func (handler *AuthHandler) handlePost(w http.ResponseWriter, r *http.Request) {
 	if path == "login" {
 		loginRequest, err := utils.DecodeBody[LoginRequest](r)
 		if err != nil {
-			utils.EncodeResponse(w, err.StatusCode, err)
+			utils.EncodeResponse(w, http.StatusInternalServerError, err)
 			return
 		}
 		response, err := handler.service.Login(loginRequest)
 		if err != nil {
-			utils.EncodeResponse(w, err.StatusCode, err)
+			utils.EncodeResponse(w, http.StatusBadRequest, err)
 			return
 		}
 		utils.EncodeResponse(w, http.StatusOK, response)
@@ -67,17 +76,24 @@ func (handler *AuthHandler) handlePost(w http.ResponseWriter, r *http.Request) {
 	if path == "refresh" {
 		refreshRequest, err := utils.DecodeBody[RefreshTokenRequest](r)
 		if err != nil {
-			utils.EncodeResponse(w, err.StatusCode, err)
+			if err.Message == utils.InvalidRequestBody {
+				utils.EncodeResponse(w, http.StatusBadRequest, err)
+				return
+			}
+			utils.EncodeResponse(w, http.StatusInternalServerError, err)
 			return
 		}
 		response, err := handler.service.RefreshToken(refreshRequest)
 		if err != nil {
-			utils.EncodeResponse(w, err.StatusCode, err)
+			utils.EncodeResponse(w, http.StatusUnauthorized, err)
 			return
 		}
 		utils.EncodeResponse(w, http.StatusOK, response)
 		return
 	}
 
-	utils.EncodeResponse(w, http.StatusNotFound, utils.NewErrorResponse(http.StatusNotFound, "Route not found", "Invalid path"))
+	utils.EncodeResponse(w, http.StatusNotFound, &utils.ErrorResponse{
+		Message: utils.RouteNotFound,
+		Details: "Invalid path",
+	})
 }

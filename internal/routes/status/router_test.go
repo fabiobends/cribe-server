@@ -9,7 +9,7 @@ import (
 )
 
 func TestStatusIntegration(t *testing.T) {
-	resp := utils.MustSendTestRequest[GetStatusResponse](utils.TestRequest{
+	resp := utils.MustSendTestRequest[StatusInfo](utils.TestRequest{
 		Method:      http.MethodGet,
 		URL:         "/status",
 		HandlerFunc: HandleHTTPRequests,

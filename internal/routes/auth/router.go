@@ -7,9 +7,10 @@ import (
 )
 
 func HandleHTTPRequests(w http.ResponseWriter, r *http.Request) {
-	repo := *users.NewUserRepository()
-	service := users.NewUserService(repo)
-	handler := users.NewUserHandler(service)
+	repo := users.NewUserRepository()
+	tokenService := NewTokenServiceReady()
+	service := NewAuthService(repo, tokenService)
+	handler := NewAuthHandler(service)
 
 	handler.HandleRequest(w, r)
 }

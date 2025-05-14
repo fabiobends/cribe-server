@@ -36,7 +36,11 @@ func (handler *UserHandler) handlePost(w http.ResponseWriter, r *http.Request) {
 
 	response, errResp := handler.service.CreateUser(userDTO)
 	if errResp != nil {
-		utils.EncodeResponse(w, errResp.StatusCode, errResp)
+		if errResp.Message == utils.ValidationError {
+			utils.EncodeResponse(w, http.StatusBadRequest, errResp)
+		} else {
+			utils.EncodeResponse(w, http.StatusInternalServerError, errResp)
+		}
 		return
 	}
 
@@ -50,7 +54,7 @@ func (handler *UserHandler) handleGet(w http.ResponseWriter, r *http.Request) {
 	if path == "" {
 		response, errResp := handler.service.GetUsers()
 		if errResp != nil {
-			utils.EncodeResponse(w, errResp.StatusCode, errResp)
+			utils.EncodeResponse(w, http.StatusNotFound, errResp)
 			return
 		}
 		utils.EncodeResponse(w, http.StatusOK, response)
@@ -60,13 +64,16 @@ func (handler *UserHandler) handleGet(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(path)
 	if err != nil {
 		statusCode := http.StatusBadRequest
-		utils.EncodeResponse(w, statusCode, utils.NewErrorResponse(statusCode, "Invalid id parameter", err.Error()))
+		utils.EncodeResponse(w, statusCode, &utils.ErrorResponse{
+			Message: utils.InvalidIdParameter,
+			Details: err.Error(),
+		})
 		return
 	}
 
 	response, errResp := handler.service.GetUserById(id)
 	if errResp != nil {
-		utils.EncodeResponse(w, errResp.StatusCode, errResp)
+		utils.EncodeResponse(w, http.StatusNotFound, errResp)
 		return
 	}
 	utils.EncodeResponse(w, http.StatusOK, response)

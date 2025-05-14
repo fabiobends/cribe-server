@@ -1,8 +1,17 @@
 services:
   database:
-    container_name: cribe-${APP_ENV}
+    container_name: cribe-${APP_ENV}-db
     image: postgres:17-alpine
     env_file:
       - .env.${APP_ENV}
     ports:
-      - 5432:5432
+      - ${POSTGRES_PORT}:5432
+    volumes:
+      - ${APP_ENV}_db_data:/var/lib/postgresql/data
+
+volumes:
+  development_db_data:
+  test_db_data:
+    driver: local
+    driver_opts:
+      type: tmpfs

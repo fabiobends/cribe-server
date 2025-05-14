@@ -3,7 +3,7 @@ package status
 import "time"
 
 type StatusServiceInterface interface {
-	GetStatus() GetStatusResponse
+	GetStatus() StatusInfo
 }
 
 type StatusService struct {
@@ -15,7 +15,7 @@ func NewStatusService(repo StatusRepository, getCurrentTime func() time.Time) *S
 	return &StatusService{repo: repo, getCurrentTime: getCurrentTime}
 }
 
-func (service *StatusService) GetStatus() GetStatusResponse {
+func (service *StatusService) GetStatus() StatusInfo {
 	now := service.getCurrentTime()
 	updatedAt := now.Format(time.RFC3339)
 
@@ -24,7 +24,7 @@ func (service *StatusService) GetStatus() GetStatusResponse {
 		Database: databaseInfo,
 	}
 
-	return GetStatusResponse{
+	return StatusInfo{
 		UpdatedAt:    updatedAt,
 		Dependencies: dependencies,
 	}

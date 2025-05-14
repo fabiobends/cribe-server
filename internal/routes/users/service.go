@@ -1,8 +1,6 @@
 package users
 
 import (
-	"net/http"
-
 	"cribeapp.com/cribe-server/internal/utils"
 )
 
@@ -23,7 +21,10 @@ func (service *UserService) CreateUser(user UserDTO) (User, *utils.ErrorResponse
 	// Create user in repository
 	result, err := service.repo.CreateUser(user)
 	if err != nil {
-		return User{}, utils.NewDatabaseError(err)
+		return User{}, &utils.ErrorResponse{
+			Message: utils.DatabaseError,
+			Details: err.Error(),
+		}
 	}
 
 	// Return sanitized user without sensitive data
@@ -34,9 +35,15 @@ func (service *UserService) GetUserById(id int) (User, *utils.ErrorResponse) {
 	result, err := service.repo.GetUserById(id)
 	if err != nil {
 		if err.Error() == "no rows in result set" {
-			return User{}, utils.NewErrorResponse(http.StatusNotFound, "User not found")
+			return User{}, &utils.ErrorResponse{
+				Message: utils.UserNotFound,
+				Details: "The requested user was not found",
+			}
 		}
-		return User{}, utils.NewDatabaseError(err)
+		return User{}, &utils.ErrorResponse{
+			Message: utils.DatabaseError,
+			Details: err.Error(),
+		}
 	}
 
 	return service.sanitizeUser(result), nil
@@ -45,7 +52,10 @@ func (service *UserService) GetUserById(id int) (User, *utils.ErrorResponse) {
 func (service *UserService) GetUsers() ([]User, *utils.ErrorResponse) {
 	result, err := service.repo.GetUsers()
 	if err != nil {
-		return nil, utils.NewDatabaseError(err)
+		return nil, &utils.ErrorResponse{
+			Message: utils.DatabaseError,
+			Details: err.Error(),
+		}
 	}
 
 	users := make([]User, len(result))
