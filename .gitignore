@@ -2,9 +2,8 @@ vendor/
 tmp/
 .env
 
-# IDE specific files
-.vscode
-.idea
-
 # build output
 cribe-server
+
+# debug artifacts
+__debug_bin*

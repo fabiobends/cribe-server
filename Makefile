@@ -31,7 +31,7 @@ build:
 	go build -o cribe-server ./cmd/app
 
 run:
-	APP_ENV=development POSTGRES_PORT=5432 make services-up
+	make services-up-dev
 	@echo "Waiting for database to be ready..."
 	@sleep 1
 	godotenv -f .env.development go run cmd/app/main.go
@@ -42,6 +42,14 @@ dev:
 	@sleep 1
 	godotenv -f .env.development air
 
+dev-debug:
+	@echo "Killing port 2345 for Delve to attach to"
+	make kill-port port=2345
+	make services-up-dev
+	@echo "Waiting for database to be ready..."
+	@sleep 1
+	godotenv -f .env.development air -c .air.debug.toml
+
 test:
 	@echo "Running tests..."
 	make services-up-test
@@ -51,8 +59,10 @@ test:
 	@echo "Teardown test environment..."
 	make services-down-test
 
-# Migrations
+kill-port:
+	lsof -ti:$(port) | xargs -r kill
 
+# Migrations
 migration_path=./infra/migrations
 
 migrate-create:
