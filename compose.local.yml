@@ -15,3 +15,4 @@ volumes:
     driver: local
     driver_opts:
       type: tmpfs
+      device: tmpfs
