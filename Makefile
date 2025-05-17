@@ -1,56 +1,41 @@
-.PHONY: services-up run dev test migrate-create migrate-up migrate-down clean-volumes create-db
+# ---------------------------
+# VARIABLES
+# ---------------------------
+APP_ENV ?= development
+POSTGRES_PORT ?= 5432
+MIGRATION_PATH = ./infra/migrations
 
-services-up:
-	APP_ENV=$(APP_ENV) POSTGRES_PORT=$(POSTGRES_PORT) docker compose -p cribe-$(APP_ENV) -f compose.local.yml up -d
-
-services-down:
-	APP_ENV=$(APP_ENV) POSTGRES_PORT=$(POSTGRES_PORT) docker compose -p cribe-$(APP_ENV) -f compose.local.yml down --remove-orphans
-
-services-down-dev:
-	APP_ENV=development POSTGRES_PORT=5432 docker compose -p cribe-development -f compose.local.yml down --remove-orphans
-
-services-up-dev:
-	APP_ENV=development POSTGRES_PORT=5432 docker compose -p cribe-development -f compose.local.yml up -d
-
-services-down-test:
-	APP_ENV=test POSTGRES_PORT=5433 docker compose -p cribe-test -f compose.local.yml down --remove-orphans
-
-services-up-test:
-	APP_ENV=test POSTGRES_PORT=5433 docker compose -p cribe-test -f compose.local.yml up -d
-
-clean-db-dev:
-	docker volume rm cribe-development_development_db_data
-
-clean-db-test:
-	docker volume rm cribe-test_test_db_data
-
-clean-docker:
-	docker system prune -a --volumes
-
-build:
-	go build -o cribe-server ./cmd/app
-
-run:
-	make services-up-dev
-	@echo "Waiting for database to be ready..."
-	@sleep 1
-	godotenv -f .env.development go run cmd/app/main.go
-
-dev:
+# ---------------------------
+# COMMON DEVELOPER COMMANDS
+# ---------------------------
+dev:  ## Run with Air (hot reload, no debugger)
+	@echo "Starting Air (hot reload)..."
 	make services-up-dev
 	@echo "Waiting for database to be ready..."
 	@sleep 1
 	godotenv -f .env.development air
 
-dev-debug:
-	@echo "Killing port 2345 for Delve to attach to"
+dev-debug:  ## Run with Air + Delve (hot reload + debugger on port 2345)
+	@echo "Starting Air with Delve (debugger)..."
+	@echo "Killing port 2345 for debug server to attach to"
 	make kill-port port=2345
 	make services-up-dev
 	@echo "Waiting for database to be ready..."
 	@sleep 1
 	godotenv -f .env.development air -c .air.debug.toml
 
-test:
+run:  ## Run the app without hot reload
+	@echo "Starting app..."
+	make services-up-dev
+	@echo "Waiting for database to be ready..."
+	@sleep 1
+	godotenv -f .env.development go run cmd/app/main.go
+
+build:  ## Build the Go binary
+	@echo "Building Go binary..."
+	godotenv -f .env.development go build -o cribe-server ./cmd/app
+
+test:  ## Run tests with test database
 	@echo "Running tests..."
 	make services-up-test
 	@echo "Waiting for test database to be ready..."
@@ -59,23 +44,63 @@ test:
 	@echo "Teardown test environment..."
 	make services-down-test
 
-kill-port:
+# ---------------------------
+# UTILITIES
+# ---------------------------
+kill-port: ## Kill a port
+	@echo "Killing port $(port)..."
 	lsof -ti:$(port) | xargs -r kill
 
-# Migrations
-migration_path=./infra/migrations
+clean-temp: ## Clean temp files
+	rm -f cribe-server
+	rm -f __debug_bin*
 
-migrate-create:
-	migrate create -ext sql -dir $(migration_path) -seq $(filter-out $@,$(MAKECMDGOALS))
+# ---------------------------
+# DOCKER & DATABASE COMMANDS
+# ---------------------------
+services-up:  ## Start all services (current env)
+	APP_ENV=$(APP_ENV) POSTGRES_PORT=$(POSTGRES_PORT) docker compose -p cribe-$(APP_ENV) -f compose.local.yml up -d
 
-migrate-up:
-	@source .env.development && migrate -path $(migration_path) -database $$DATABASE_URL up
+services-down:  ## Stop all services (current env)
+	APP_ENV=$(APP_ENV) POSTGRES_PORT=$(POSTGRES_PORT) docker compose -p cribe-$(APP_ENV) -f compose.local.yml down --remove-orphans
 
-migrate-down:
-	@source .env.development && migrate -path $(migration_path) -database $$DATABASE_URL down
+services-up-dev:  ## Start dev services
+	make services-up
 
-# Git hooks
-setup-hooks:
+services-down-dev:  ## Stop dev services
+	make services-down
+
+services-up-test:  ## Start test services
+	APP_ENV=test POSTGRES_PORT=5433 make services-up
+
+services-down-test:  ## Stop test services
+	APP_ENV=test POSTGRES_PORT=5433 make services-down
+
+clean-db-dev:  ## Remove dev DB volume
+	docker volume rm cribe-development_development_db_data
+
+clean-db-test:  ## Remove test DB volume
+	docker volume rm cribe-test_test_db_data
+
+clean-docker:  ## Remove all unused Docker data
+	docker system prune -a --volumes
+
+# ---------------------------
+# MIGRATIONS
+# ---------------------------
+migrate-create:  ## Create a new migration
+	migrate create -ext sql -dir $(MIGRATION_PATH) -seq $(filter-out $@,$(MAKECMDGOALS))
+
+migrate-up:  ## Apply all up migrations
+	@source .env.development && migrate -path $(MIGRATION_PATH) -database $$DATABASE_URL up
+
+migrate-down:  ## Rollback last migration
+	@source .env.development && migrate -path $(MIGRATION_PATH) -database $$DATABASE_URL down
+
+# ---------------------------
+# GIT HOOKS
+# ---------------------------
+setup-hooks:  ## Install Git hooks
 	@echo "Setting up Git hooks..."
 	@mkdir -p .git/hooks
 	@cp scripts/pre-commit .git/hooks/pre-commit
@@ -83,17 +108,26 @@ setup-hooks:
 	@chmod +x .git/hooks/pre-commit .git/hooks/pre-push
 	@echo "Git hooks installed successfully!"
 
-## Sanity checks
-
-lint:
+# ---------------------------
+# SANITY CHECKS
+# ---------------------------
+lint: ## Run linting
 	golangci-lint run
 
-format:
+format: ## Format code
 	go fmt ./...
 
-update-deps:
+update-deps: ## Update dependencies
 	go get -u ./...
 	go mod tidy
 
-typecheck:
+typecheck: ## Run type checking
 	go vet ./...
+
+# ---------------------------
+# HELP
+# ---------------------------
+help:
+	@egrep -h '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | sed 's/:.*## /: /' | awk -F: '{printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
+
+.PHONY: dev dev-debug run build test services-up services-down services-up-dev services-down-dev services-up-test services-down-test clean-db-dev clean-db-test clean-docker migrate-create migrate-up migrate-down setup-hooks help
