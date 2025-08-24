@@ -150,7 +150,7 @@ func TestAuthService_RefreshToken(t *testing.T) {
 			RefreshToken: "refresh_token_test",
 		})
 
-		expectedMessage := "Refresh token expired"
+		expectedMessage := "refresh token expired"
 		if err.Details != expectedMessage {
 			t.Errorf("Expected %s, got %s", expectedMessage, err.Details)
 		}

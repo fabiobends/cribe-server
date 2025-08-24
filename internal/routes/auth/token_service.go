@@ -87,16 +87,16 @@ func (s *TokenServiceImpl) ValidateToken(accessToken string) (*JWTObject, error)
 	})
 
 	if err != nil {
-		return nil, errors.New("Failed to parse token")
+		return nil, errors.New("failed to parse token")
 	}
 
 	if !token.Valid {
-		return nil, errors.New("Invalid token")
+		return nil, errors.New("invalid token")
 	}
 
 	claims, ok := token.Claims.(*JWTClaims)
 	if !ok {
-		return nil, errors.New("Invalid token claims")
+		return nil, errors.New("invalid token claims")
 	}
 
 	return &JWTObject{
