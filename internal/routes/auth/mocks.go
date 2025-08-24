@@ -53,18 +53,18 @@ func (s *MockTokenService) CompareHashAndPassword(hashedPassword, password strin
 	if strings.Contains(hashedPassword, "hashed_password") {
 		return nil
 	}
-	return errors.New("Invalid password")
+	return errors.New("invalid password")
 }
 
 func (s *MockTokenService) ValidateToken(token string) (*JWTObject, error) {
 	if token != "access_token"+"_"+string(s.secretKey) && token != "refresh_token"+"_"+string(s.secretKey) {
-		return nil, errors.New("Invalid token")
+		return nil, errors.New("invalid token")
 	}
 	if s.currentTime().Add(s.accessTokenExpiration).Before(s.currentTime()) {
-		return nil, errors.New("Access token expired")
+		return nil, errors.New("access token expired")
 	}
 	if s.currentTime().Add(s.refreshTokenExpiration).Before(s.currentTime()) {
-		return nil, errors.New("Refresh token expired")
+		return nil, errors.New("refresh token expired")
 	}
 	return &JWTObject{
 		UserID: 1,

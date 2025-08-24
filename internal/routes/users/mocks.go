@@ -30,7 +30,7 @@ func NewMockUserRepositoryReady(presetUsers ...UserWithPassword) *UserRepository
 			// Check if any field is empty
 			for _, arg := range args {
 				if arg == "" {
-					return UserWithPassword{}, fmt.Errorf("Empty field")
+					return UserWithPassword{}, fmt.Errorf("empty field")
 				}
 			}
 			// Get user by id
@@ -41,7 +41,7 @@ func NewMockUserRepositoryReady(presetUsers ...UserWithPassword) *UserRepository
 						return user, nil
 					}
 				}
-				return UserWithPassword{}, fmt.Errorf("User not found")
+				return UserWithPassword{}, fmt.Errorf("user not found")
 			}
 
 			// Get user by email
@@ -51,20 +51,20 @@ func NewMockUserRepositoryReady(presetUsers ...UserWithPassword) *UserRepository
 						return user, nil
 					}
 				}
-				return UserWithPassword{}, fmt.Errorf("User not found")
+				return UserWithPassword{}, fmt.Errorf("user not found")
 			}
 
 			// Insert user
 			if strings.Contains(query, "INSERT INTO users") {
 				neededArgsLength := 4
 				if len(args) < neededArgsLength {
-					return UserWithPassword{}, fmt.Errorf("Expected %d arguments, got %d", neededArgsLength, len(args))
+					return UserWithPassword{}, fmt.Errorf("expected %d arguments, got %d", neededArgsLength, len(args))
 				}
 
 				// Check if email is already taken, don't insert the user
 				for _, user := range users {
 					if user.Email == args[2].(string) {
-						return UserWithPassword{}, fmt.Errorf("Email already taken")
+						return UserWithPassword{}, fmt.Errorf("email already taken")
 					}
 				}
 
@@ -82,7 +82,7 @@ func NewMockUserRepositoryReady(presetUsers ...UserWithPassword) *UserRepository
 				return user, nil
 			}
 
-			return UserWithPassword{}, fmt.Errorf("User not found")
+			return UserWithPassword{}, fmt.Errorf("user not found")
 		},
 		QueryListFunc: func(query string, args ...any) ([]UserWithPassword, error) {
 			return users, nil

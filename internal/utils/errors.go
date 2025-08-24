@@ -15,5 +15,5 @@ const (
 	InternalError              = "Internal server error"
 	InvalidAuthorizationHeader = "Invalid authorization header"
 	PrivateRoute               = "Private route"
-	InvalidCredentials         = "Invalid credentials"
+	InvalidCredentials         = "Invalid credentials" // #nosec G101
 )

@@ -2,6 +2,7 @@ package core
 
 import (
 	"net/http"
+	"time"
 
 	"cribeapp.com/cribe-server/internal/middlewares"
 	"cribeapp.com/cribe-server/internal/routes/auth"
@@ -26,5 +27,14 @@ func Handler(port string) error {
 
 	muxWithMiddleware := middlewares.MainMiddleware(mux)
 
-	return http.ListenAndServe(":"+port, muxWithMiddleware)
+	server := &http.Server{
+		Addr:           ":" + port,
+		Handler:        muxWithMiddleware,
+		ReadTimeout:    15 * time.Second,
+		WriteTimeout:   15 * time.Second,
+		IdleTimeout:    60 * time.Second,
+		MaxHeaderBytes: 1 << 20, // 1 MB
+	}
+
+	return server.ListenAndServe()
 }
