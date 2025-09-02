@@ -80,13 +80,11 @@ jobs:
 
   deploy:
     needs: test
+    environment: Production
     runs-on: ubuntu-latest
     permissions:
       contents: 'read'
       id-token: 'write'
-    env:
-      IMAGE_ROOT_NAME: "fabiomendeslps/cribe-api"
-      GC_SERVICE_NAME: "api-service"
 
     steps:
       - name: Checkout repository
@@ -106,9 +104,9 @@ jobs:
         run: |
           SHA=$(git rev-parse --short HEAD)
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            IMAGE_NAME=${{ env.IMAGE_ROOT_NAME }}-staging:$SHA
+            IMAGE_NAME=${{ vars.IMAGE_ROOT_NAME }}-staging:$SHA
           else
-            IMAGE_NAME=${{ env.IMAGE_ROOT_NAME }}:$SHA
+            IMAGE_NAME=${{ vars.IMAGE_ROOT_NAME }}:$SHA
           fi
           echo IMAGE_NAME=$IMAGE_NAME >> $GITHUB_OUTPUT
 
@@ -131,7 +129,7 @@ jobs:
         id: deploy
         uses: google-github-actions/deploy-cloudrun@v2
         with:
-          service: ${{ github.event_name == 'pull_request' && format('{0}-staging', env.GC_SERVICE_NAME) || env.GC_SERVICE_NAME }}
+          service: ${{ github.event_name == 'pull_request' && format('{0}-staging', vars.GC_SERVICE_NAME) || vars.GC_SERVICE_NAME }}
           region: ${{ secrets.GC_REGION }}
           image: ${{ steps.image_name.outputs.IMAGE_NAME }}
           flags: --allow-unauthenticated
