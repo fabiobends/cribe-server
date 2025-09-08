@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"time"
 
+	"cribeapp.com/cribe-server/internal/errors"
 	"cribeapp.com/cribe-server/internal/utils"
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
@@ -32,8 +33,9 @@ func HandleHTTPRequests(w http.ResponseWriter, r *http.Request) {
 
 	migrationsPath, err := getMigrationsPath()
 	if err != nil {
-		utils.EncodeResponse(w, http.StatusInternalServerError, utils.ErrorResponse{
-			Message: "Failed to get migrations path",
+		utils.EncodeResponse(w, http.StatusInternalServerError, errors.ErrorResponse{
+			Message: errors.InternalServerError,
+			Details: "Failed to get migrations path",
 		})
 		return
 	}

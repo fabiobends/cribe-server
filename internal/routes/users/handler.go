@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"cribeapp.com/cribe-server/internal/errors"
 	"cribeapp.com/cribe-server/internal/utils"
 )
 
@@ -36,7 +37,7 @@ func (handler *UserHandler) handlePost(w http.ResponseWriter, r *http.Request) {
 
 	response, errResp := handler.service.CreateUser(userDTO)
 	if errResp != nil {
-		if errResp.Message == utils.ValidationError {
+		if errResp.Message == errors.ValidationError {
 			utils.EncodeResponse(w, http.StatusBadRequest, errResp)
 		} else {
 			utils.EncodeResponse(w, http.StatusInternalServerError, errResp)
@@ -64,8 +65,8 @@ func (handler *UserHandler) handleGet(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(path)
 	if err != nil {
 		statusCode := http.StatusBadRequest
-		utils.EncodeResponse(w, statusCode, &utils.ErrorResponse{
-			Message: utils.InvalidIdParameter,
+		utils.EncodeResponse(w, statusCode, &errors.ErrorResponse{
+			Message: errors.InvalidIdParameter,
 			Details: err.Error(),
 		})
 		return

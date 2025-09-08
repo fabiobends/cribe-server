@@ -1,8 +1,8 @@
 package auth
 
 import (
+	"cribeapp.com/cribe-server/internal/errors"
 	"cribeapp.com/cribe-server/internal/routes/users"
-	"cribeapp.com/cribe-server/internal/utils"
 )
 
 type AuthService struct {
@@ -17,11 +17,11 @@ func NewAuthService(userRepo *users.UserRepository, tokenService TokenService) *
 	}
 }
 
-func (s *AuthService) Register(data users.UserDTO) (*RegisterResponse, *utils.ErrorResponse) {
+func (s *AuthService) Register(data users.UserDTO) (*RegisterResponse, *errors.ErrorResponse) {
 	hashedPassword, err := s.tokenService.GenerateHash(data.Password)
 	if err != nil {
-		return nil, &utils.ErrorResponse{
-			Message: utils.InternalError,
+		return nil, &errors.ErrorResponse{
+			Message: errors.InternalServerError,
 			Details: err.Error(),
 		}
 	}
@@ -32,43 +32,43 @@ func (s *AuthService) Register(data users.UserDTO) (*RegisterResponse, *utils.Er
 		Password:  string(hashedPassword),
 	})
 	if err != nil {
-		return nil, &utils.ErrorResponse{
-			Message: utils.DatabaseError,
+		return nil, &errors.ErrorResponse{
+			Message: errors.DatabaseError,
 			Details: err.Error(),
 		}
 	}
 	return &RegisterResponse{ID: user.ID}, nil
 }
 
-func (s *AuthService) Login(data LoginRequest) (*LoginResponse, *utils.ErrorResponse) {
+func (s *AuthService) Login(data LoginRequest) (*LoginResponse, *errors.ErrorResponse) {
 	user, err := s.userRepo.GetUserByEmail(data.Email)
 	if err != nil {
-		return nil, &utils.ErrorResponse{
-			Message: utils.InvalidCredentials,
+		return nil, &errors.ErrorResponse{
+			Message: errors.InvalidCredentials,
 			Details: err.Error(),
 		}
 	}
 
 	err = s.tokenService.CompareHashAndPassword(user.Password, data.Password)
 	if err != nil {
-		return nil, &utils.ErrorResponse{
-			Message: utils.InvalidCredentials,
+		return nil, &errors.ErrorResponse{
+			Message: errors.InvalidCredentials,
 			Details: err.Error(),
 		}
 	}
 
 	accessToken, err := s.tokenService.GetAccessToken(user.ID)
 	if err != nil {
-		return nil, &utils.ErrorResponse{
-			Message: utils.InternalError,
+		return nil, &errors.ErrorResponse{
+			Message: errors.InternalServerError,
 			Details: err.Error(),
 		}
 	}
 
 	refreshToken, err := s.tokenService.GetRefreshToken(user.ID)
 	if err != nil {
-		return nil, &utils.ErrorResponse{
-			Message: utils.InternalError,
+		return nil, &errors.ErrorResponse{
+			Message: errors.InternalServerError,
 			Details: err.Error(),
 		}
 	}
@@ -79,27 +79,27 @@ func (s *AuthService) Login(data LoginRequest) (*LoginResponse, *utils.ErrorResp
 	}, nil
 }
 
-func (s *AuthService) RefreshToken(data RefreshTokenRequest) (*RefreshTokenResponse, *utils.ErrorResponse) {
+func (s *AuthService) RefreshToken(data RefreshTokenRequest) (*RefreshTokenResponse, *errors.ErrorResponse) {
 	user, err := s.tokenService.ValidateToken(data.RefreshToken)
 	if err != nil {
-		return nil, &utils.ErrorResponse{
-			Message: utils.InvalidRequestBody,
+		return nil, &errors.ErrorResponse{
+			Message: errors.InvalidRequestBody,
 			Details: err.Error(),
 		}
 	}
 
 	_, err = s.userRepo.GetUserById(user.UserID)
 	if err != nil {
-		return nil, &utils.ErrorResponse{
-			Message: utils.DatabaseError,
+		return nil, &errors.ErrorResponse{
+			Message: errors.DatabaseError,
 			Details: err.Error(),
 		}
 	}
 
 	accessToken, err := s.tokenService.GetAccessToken(user.UserID)
 	if err != nil {
-		return nil, &utils.ErrorResponse{
-			Message: utils.InternalError,
+		return nil, &errors.ErrorResponse{
+			Message: errors.InternalServerError,
 			Details: err.Error(),
 		}
 	}

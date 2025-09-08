@@ -4,7 +4,7 @@ import (
 	"strings"
 	"time"
 
-	"cribeapp.com/cribe-server/internal/utils"
+	"cribeapp.com/cribe-server/internal/errors"
 )
 
 type User struct {
@@ -34,37 +34,37 @@ type UserDTO struct {
 }
 
 // Validate performs domain validation on the user DTO
-func (dto UserDTO) Validate() *utils.ErrorResponse {
-	var errors []string
+func (dto UserDTO) Validate() *errors.ErrorResponse {
+	var validationErrors []string
 
 	// Required fields validation
 	if strings.TrimSpace(dto.FirstName) == "" {
-		errors = append(errors, "First name is required")
+		validationErrors = append(validationErrors, "First name is required")
 	}
 	if strings.TrimSpace(dto.LastName) == "" {
-		errors = append(errors, "Last name is required")
+		validationErrors = append(validationErrors, "Last name is required")
 	}
 	if strings.TrimSpace(dto.Email) == "" {
-		errors = append(errors, "Email is required")
+		validationErrors = append(validationErrors, "Email is required")
 	}
 	if strings.TrimSpace(dto.Password) == "" {
-		errors = append(errors, "Password is required")
+		validationErrors = append(validationErrors, "Password is required")
 	}
 
 	// Email format validation
 	if strings.TrimSpace(dto.Email) != "" && !strings.Contains(dto.Email, "@") {
-		errors = append(errors, "Invalid email format")
+		validationErrors = append(validationErrors, "Invalid email format")
 	}
 
 	// Password length validation
 	if strings.TrimSpace(dto.Password) != "" && len(dto.Password) < 8 {
-		errors = append(errors, "Password must be at least 8 characters long")
+		validationErrors = append(validationErrors, "Password must be at least 8 characters long")
 	}
 
-	if len(errors) > 0 {
-		return &utils.ErrorResponse{
-			Message: utils.ValidationError,
-			Details: strings.Join(errors, ", "),
+	if len(validationErrors) > 0 {
+		return &errors.ErrorResponse{
+			Message: errors.ValidationError,
+			Details: strings.Join(validationErrors, ", "),
 		}
 	}
 

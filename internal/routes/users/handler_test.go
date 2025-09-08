@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"cribeapp.com/cribe-server/internal/errors"
 	"cribeapp.com/cribe-server/internal/utils"
 )
 
@@ -56,7 +57,7 @@ func TestUserHandler_HandleRequest(t *testing.T) {
 			t.Errorf("Expected status code %v, got %v", http.StatusBadRequest, w.Code)
 		}
 
-		result := utils.DecodeResponse[utils.ErrorResponse](w.Body.String())
+		result := utils.DecodeResponse[errors.ErrorResponse](w.Body.String())
 
 		if len(result.Details) == 0 {
 			t.Error("Expected validation errors, got none")

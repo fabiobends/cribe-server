@@ -1,7 +1,7 @@
 package users
 
 import (
-	"cribeapp.com/cribe-server/internal/utils"
+	"cribeapp.com/cribe-server/internal/errors"
 )
 
 type UserService struct {
@@ -12,7 +12,7 @@ func NewUserService(repo UserRepository) *UserService {
 	return &UserService{repo: repo}
 }
 
-func (service *UserService) CreateUser(user UserDTO) (User, *utils.ErrorResponse) {
+func (service *UserService) CreateUser(user UserDTO) (User, *errors.ErrorResponse) {
 	// Validate using domain validation
 	if err := user.Validate(); err != nil {
 		return User{}, err
@@ -21,8 +21,8 @@ func (service *UserService) CreateUser(user UserDTO) (User, *utils.ErrorResponse
 	// Create user in repository
 	result, err := service.repo.CreateUser(user)
 	if err != nil {
-		return User{}, &utils.ErrorResponse{
-			Message: utils.DatabaseError,
+		return User{}, &errors.ErrorResponse{
+			Message: errors.DatabaseError,
 			Details: err.Error(),
 		}
 	}
@@ -31,17 +31,17 @@ func (service *UserService) CreateUser(user UserDTO) (User, *utils.ErrorResponse
 	return service.sanitizeUser(result), nil
 }
 
-func (service *UserService) GetUserById(id int) (User, *utils.ErrorResponse) {
+func (service *UserService) GetUserById(id int) (User, *errors.ErrorResponse) {
 	result, err := service.repo.GetUserById(id)
 	if err != nil {
 		if err.Error() == "no rows in result set" {
-			return User{}, &utils.ErrorResponse{
-				Message: utils.UserNotFound,
+			return User{}, &errors.ErrorResponse{
+				Message: errors.UserNotFound,
 				Details: "The requested user was not found",
 			}
 		}
-		return User{}, &utils.ErrorResponse{
-			Message: utils.DatabaseError,
+		return User{}, &errors.ErrorResponse{
+			Message: errors.DatabaseError,
 			Details: err.Error(),
 		}
 	}
@@ -49,11 +49,11 @@ func (service *UserService) GetUserById(id int) (User, *utils.ErrorResponse) {
 	return service.sanitizeUser(result), nil
 }
 
-func (service *UserService) GetUsers() ([]User, *utils.ErrorResponse) {
+func (service *UserService) GetUsers() ([]User, *errors.ErrorResponse) {
 	result, err := service.repo.GetUsers()
 	if err != nil {
-		return nil, &utils.ErrorResponse{
-			Message: utils.DatabaseError,
+		return nil, &errors.ErrorResponse{
+			Message: errors.DatabaseError,
 			Details: err.Error(),
 		}
 	}

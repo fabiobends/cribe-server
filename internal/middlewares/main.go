@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 
+	"cribeapp.com/cribe-server/internal/errors"
 	"cribeapp.com/cribe-server/internal/feature_flags"
 	"cribeapp.com/cribe-server/internal/routes/auth"
 	"cribeapp.com/cribe-server/internal/utils"
@@ -19,7 +20,7 @@ func MainMiddleware(next http.Handler) http.Handler {
 		isPrivate := PrivateCheckerMiddleware(w, r)
 		if isPrivate {
 			var userID int
-			var authError *utils.ErrorResponse
+			var authError *errors.ErrorResponse
 
 			// Check if dev auth is enabled (using feature flags)
 			if feature_flags.IsDevAuthEnabled() {
@@ -33,6 +34,13 @@ func MainMiddleware(next http.Handler) http.Handler {
 			// If dev auth didn't work or isn't enabled, use normal token auth
 			if userID == 0 {
 				tokenService := auth.NewTokenServiceReady()
+				if tokenService == nil {
+					utils.EncodeResponse(w, http.StatusInternalServerError, &errors.ErrorResponse{
+						Message: errors.InternalServerError,
+						Details: "Token service not configured",
+					})
+					return
+				}
 				userToken, err := AuthMiddleware(w, r, tokenService)
 				if err != nil {
 					utils.EncodeResponse(w, http.StatusUnauthorized, err)
