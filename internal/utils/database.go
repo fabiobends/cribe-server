@@ -37,7 +37,7 @@ func QueryItem[T any](query string, params ...any) (T, error) {
 
 	item, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByNameLax[T])
 
-	if err != nil {
+	if err != nil && err.Error() != "no rows in result set" {
 		log.Printf("Unable to collect row: %v", err)
 	}
 
