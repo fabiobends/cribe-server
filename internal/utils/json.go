@@ -5,15 +5,17 @@ import (
 	"log"
 	"net/http"
 	"strings"
+
+	"cribeapp.com/cribe-server/internal/errors"
 )
 
-func DecodeBody[T any](r *http.Request) (T, *ErrorResponse) {
+func DecodeBody[T any](r *http.Request) (T, *errors.ErrorResponse) {
 	var decodedBody T
 
 	if err := json.NewDecoder(r.Body).Decode(&decodedBody); err != nil {
 		var zero T
-		return zero, &ErrorResponse{
-			Message: InvalidRequestBody,
+		return zero, &errors.ErrorResponse{
+			Message: errors.InvalidRequestBody,
 			Details: err.Error(),
 		}
 	}

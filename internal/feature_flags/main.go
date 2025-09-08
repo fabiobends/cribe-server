@@ -4,8 +4,8 @@ import (
 	"os"
 	"strings"
 
+	"cribeapp.com/cribe-server/internal/errors"
 	"cribeapp.com/cribe-server/internal/routes/users"
-	"cribeapp.com/cribe-server/internal/utils"
 )
 
 // FeatureFlags holds all feature flag configurations
@@ -43,10 +43,10 @@ func GetDefaultEmail() string {
 }
 
 // TryDevAuth attempts to authenticate using the default email for development
-func TryDevAuth(defaultEmail string) (int, *utils.ErrorResponse) {
+func TryDevAuth(defaultEmail string) (int, *errors.ErrorResponse) {
 	if defaultEmail == "" {
-		return 0, &utils.ErrorResponse{
-			Message: "dev_auth_failed",
+		return 0, &errors.ErrorResponse{
+			Message: errors.DevAuthNotEnabled,
 			Details: "No default email provided",
 		}
 	}
@@ -55,8 +55,8 @@ func TryDevAuth(defaultEmail string) (int, *utils.ErrorResponse) {
 	userRepo := users.NewUserRepository()
 	user, err := userRepo.GetUserByEmail(defaultEmail)
 	if err != nil {
-		return 0, &utils.ErrorResponse{
-			Message: "dev_auth_failed",
+		return 0, &errors.ErrorResponse{
+			Message: errors.DevAuthFailed,
 			Details: "User not found with default email",
 		}
 	}

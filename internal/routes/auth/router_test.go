@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"cribeapp.com/cribe-server/internal/errors"
 	"cribeapp.com/cribe-server/internal/routes/migrations"
 	"cribeapp.com/cribe-server/internal/routes/users"
 	"cribeapp.com/cribe-server/internal/utils"
@@ -102,9 +103,9 @@ func TestAuthRouter_IntegrationTests(t *testing.T) {
 			t.Errorf("Expected status code %v, got %v", http.StatusUnauthorized, w.Code)
 		}
 
-		response := utils.DecodeResponse[utils.ErrorResponse](w.Body.String())
-		if response.Message != utils.InvalidRequestBody {
-			t.Errorf("Expected message to be %s, got %v", utils.InvalidRequestBody, response.Message)
+		response := utils.DecodeResponse[errors.ErrorResponse](w.Body.String())
+		if response.Message != errors.InvalidRequestBody {
+			t.Errorf("Expected message to be %s, got %v", errors.InvalidRequestBody, response.Message)
 		}
 	})
 

@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 
+	"cribeapp.com/cribe-server/internal/errors"
 	"cribeapp.com/cribe-server/internal/routes/users"
 	"cribeapp.com/cribe-server/internal/utils"
 )
@@ -76,7 +77,7 @@ func (handler *AuthHandler) handlePost(w http.ResponseWriter, r *http.Request) {
 	if path == "refresh" {
 		refreshRequest, err := utils.DecodeBody[RefreshTokenRequest](r)
 		if err != nil {
-			if err.Message == utils.InvalidRequestBody {
+			if err.Message == errors.InvalidRequestBody {
 				utils.EncodeResponse(w, http.StatusBadRequest, err)
 				return
 			}
@@ -92,8 +93,8 @@ func (handler *AuthHandler) handlePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utils.EncodeResponse(w, http.StatusNotFound, &utils.ErrorResponse{
-		Message: utils.RouteNotFound,
+	utils.EncodeResponse(w, http.StatusNotFound, &errors.ErrorResponse{
+		Message: errors.RouteNotFound,
 		Details: "Invalid path",
 	})
 }

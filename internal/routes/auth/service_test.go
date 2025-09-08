@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"cribeapp.com/cribe-server/internal/errors"
 	"cribeapp.com/cribe-server/internal/routes/users"
-	"cribeapp.com/cribe-server/internal/utils"
 )
 
 var service = NewMockAuthServiceReady()
@@ -87,8 +87,8 @@ func TestAuthService_Login(t *testing.T) {
 			Password: user.Password,
 		})
 
-		if err.Message != utils.InvalidCredentials {
-			t.Errorf("Expected %s, got %s", utils.InvalidCredentials, err.Message)
+		if err.Message != errors.InvalidCredentials {
+			t.Errorf("Expected %s, got %s", errors.InvalidCredentials, err.Message)
 		}
 	})
 
@@ -104,8 +104,8 @@ func TestAuthService_Login(t *testing.T) {
 			Password: user.Password,
 		})
 
-		if err.Message != utils.InvalidCredentials {
-			t.Errorf("Expected %s, got %s", utils.InvalidCredentials, err.Message)
+		if err.Message != errors.InvalidCredentials {
+			t.Errorf("Expected %s, got %s", errors.InvalidCredentials, err.Message)
 		}
 	})
 
@@ -132,8 +132,8 @@ func TestAuthService_RefreshToken(t *testing.T) {
 			RefreshToken: "invalid.refresh.token",
 		})
 
-		if err.Message != utils.InvalidRequestBody {
-			t.Errorf("Expected %s, got %s", utils.InvalidRequestBody, err.Message)
+		if err.Message != errors.InvalidRequestBody {
+			t.Errorf("Expected %s, got %s", errors.InvalidRequestBody, err.Message)
 		}
 	})
 

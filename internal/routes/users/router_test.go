@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"testing"
 
+	"cribeapp.com/cribe-server/internal/errors"
 	"cribeapp.com/cribe-server/internal/routes/migrations"
 	"cribeapp.com/cribe-server/internal/utils"
 )
@@ -14,7 +15,7 @@ func TestUsers_IntegrationTests(t *testing.T) {
 	utils.CleanDatabaseAndRunMigrations(migrations.HandleHTTPRequests)
 
 	t.Run("shouldn't get a user since the database is empty", func(t *testing.T) {
-		resp := utils.MustSendTestRequest[utils.ErrorResponse](utils.TestRequest{
+		resp := utils.MustSendTestRequest[errors.ErrorResponse](utils.TestRequest{
 			Method:      http.MethodGet,
 			URL:         "/users/1",
 			HandlerFunc: HandleHTTPRequests,
@@ -24,14 +25,14 @@ func TestUsers_IntegrationTests(t *testing.T) {
 			t.Errorf("Expected status code %d, got %d", http.StatusNotFound, resp.StatusCode)
 		}
 
-		if resp.Body.Message != utils.UserNotFound {
-			t.Errorf("Expected message %s, got %s", utils.UserNotFound, resp.Body.Message)
+		if resp.Body.Message != errors.UserNotFound {
+			t.Errorf("Expected message %s, got %s", errors.UserNotFound, resp.Body.Message)
 		}
 
 	})
 
 	t.Run("shouldn't get a user with invalid id", func(t *testing.T) {
-		resp := utils.MustSendTestRequest[utils.ErrorResponse](utils.TestRequest{
+		resp := utils.MustSendTestRequest[errors.ErrorResponse](utils.TestRequest{
 			Method:      http.MethodGet,
 			URL:         "/users/invalid",
 			HandlerFunc: HandleHTTPRequests,
@@ -41,8 +42,8 @@ func TestUsers_IntegrationTests(t *testing.T) {
 			t.Errorf("Expected status code %d, got %d", http.StatusBadRequest, resp.StatusCode)
 		}
 
-		if resp.Body.Message != utils.InvalidIdParameter {
-			t.Errorf("Expected message %s, got %s", utils.InvalidIdParameter, resp.Body.Message)
+		if resp.Body.Message != errors.InvalidIdParameter {
+			t.Errorf("Expected message %s, got %s", errors.InvalidIdParameter, resp.Body.Message)
 		}
 	})
 
@@ -53,7 +54,7 @@ func TestUsers_IntegrationTests(t *testing.T) {
 			Email:     "john.doe@example.com",
 		}
 
-		resp := utils.MustSendTestRequest[utils.ErrorResponse](utils.TestRequest{
+		resp := utils.MustSendTestRequest[errors.ErrorResponse](utils.TestRequest{
 			Method:      http.MethodPost,
 			URL:         "/users",
 			Body:        userDTO,
@@ -64,8 +65,8 @@ func TestUsers_IntegrationTests(t *testing.T) {
 			t.Errorf("Expected status code %d, got %d", http.StatusBadRequest, resp.StatusCode)
 		}
 
-		if resp.Body.Message != utils.ValidationError {
-			t.Errorf("Expected message %s, got %s", utils.ValidationError, resp.Body.Message)
+		if resp.Body.Message != errors.ValidationError {
+			t.Errorf("Expected message %s, got %s", errors.ValidationError, resp.Body.Message)
 		}
 	})
 
@@ -126,7 +127,7 @@ func TestUsers_IntegrationTests(t *testing.T) {
 	})
 
 	t.Run("shouldn't get a user if the user doesn't exist", func(t *testing.T) {
-		resp := utils.MustSendTestRequest[utils.ErrorResponse](utils.TestRequest{
+		resp := utils.MustSendTestRequest[errors.ErrorResponse](utils.TestRequest{
 			Method:      http.MethodGet,
 			URL:         "/users/2",
 			HandlerFunc: HandleHTTPRequests,
