@@ -1,6 +1,8 @@
 package users
 
 import (
+	"strings"
+
 	"cribeapp.com/cribe-server/internal/errors"
 )
 
@@ -21,9 +23,17 @@ func (service *UserService) CreateUser(user UserDTO) (User, *errors.ErrorRespons
 	// Create user in repository
 	result, err := service.repo.CreateUser(user)
 	if err != nil {
+		// Check if it's a duplicate email error
+		if strings.Contains(err.Error(), "unique constraint") || strings.Contains(err.Error(), "duplicate key") {
+			return User{}, &errors.ErrorResponse{
+				Message: errors.DatabaseError,
+				Details: "Email address is already registered",
+			}
+		}
+
 		return User{}, &errors.ErrorResponse{
 			Message: errors.DatabaseError,
-			Details: err.Error(),
+			Details: "Failed to create user account",
 		}
 	}
 
@@ -42,7 +52,7 @@ func (service *UserService) GetUserById(id int) (User, *errors.ErrorResponse) {
 		}
 		return User{}, &errors.ErrorResponse{
 			Message: errors.DatabaseError,
-			Details: err.Error(),
+			Details: "Failed to retrieve user",
 		}
 	}
 
@@ -54,7 +64,7 @@ func (service *UserService) GetUsers() ([]User, *errors.ErrorResponse) {
 	if err != nil {
 		return nil, &errors.ErrorResponse{
 			Message: errors.DatabaseError,
-			Details: err.Error(),
+			Details: "Failed to retrieve users",
 		}
 	}
 
