@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	"cribeapp.com/cribe-server/internal/core/logger"
 	"cribeapp.com/cribe-server/internal/middlewares"
 	"cribeapp.com/cribe-server/internal/routes/auth"
 	"cribeapp.com/cribe-server/internal/routes/migrations"
@@ -17,13 +18,22 @@ type Response struct {
 }
 
 func Handler(port string) error {
+	routerLogger := logger.NewCoreLogger("Router")
+
+	routerLogger.Info("Initializing HTTP router and routes")
+
 	mux := http.NewServeMux()
 
+	// Register routes
 	mux.HandleFunc("/auth/", auth.HandleHTTPRequests)
 	mux.HandleFunc("/migrations", migrations.HandleHTTPRequests)
 	mux.HandleFunc("/status/", status.HandleHTTPRequests)
 	mux.HandleFunc("/users/", users.HandleHTTPRequests)
 	mux.HandleFunc("/", utils.NotFound)
+
+	routerLogger.Debug("Registered routes", map[string]interface{}{
+		"routes": []string{"/auth/", "/migrations", "/status/", "/users/", "/"},
+	})
 
 	muxWithMiddleware := middlewares.MainMiddleware(mux)
 
@@ -35,6 +45,14 @@ func Handler(port string) error {
 		IdleTimeout:    60 * time.Second,
 		MaxHeaderBytes: 1 << 20, // 1 MB
 	}
+
+	routerLogger.Info("Starting HTTP server", map[string]interface{}{
+		"port":           port,
+		"readTimeout":    "15s",
+		"writeTimeout":   "15s",
+		"idleTimeout":    "60s",
+		"maxHeaderBytes": "1MB",
+	})
 
 	return server.ListenAndServe()
 }

@@ -1,3 +1,5 @@
+version: "2"
+
 run:
   timeout: 2m
 
@@ -9,7 +11,3 @@ linters:
     - unused     # Detects unused code
     - gocritic   # Suggests code improvements
     - gofmt      # Checks formatting
-
-linters-settings:
-  gofmt:
-    simplify: true # Simplify code when possible

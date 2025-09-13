@@ -1,10 +1,10 @@
 package middlewares
 
 import (
-	"log"
 	"net/http"
 	"strings"
 
+	"cribeapp.com/cribe-server/internal/core/logger"
 	"cribeapp.com/cribe-server/internal/errors"
 	"cribeapp.com/cribe-server/internal/routes/auth"
 )
@@ -14,38 +14,52 @@ type contextUserIDKey string
 
 const UserIDContextKey = contextUserIDKey("user_id")
 
+// AuthMiddleware extracts and validates the JWT token from the Authorization header
 func AuthMiddleware(w http.ResponseWriter, r *http.Request, tokenService auth.TokenService) (*auth.JWTObject, *errors.ErrorResponse) {
-	// Check if the path is a private route
-	log.Println("Requested path", r.URL.Path)
+	authLogger := logger.NewMiddlewareLogger("AuthMiddleware")
 
+	authLogger.Debug("Extracting authorization token from request")
+
+	// Get the Authorization header
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {
+		authLogger.Warn("Authorization header missing")
 		return nil, &errors.ErrorResponse{
-			Message: errors.InvalidAuthorizationHeader,
-			Details: "You are not authorized to access this resource",
+			Message: errors.Unauthorized,
+			Details: "Authorization header is required",
 		}
 	}
 
-	// Check if the header is in the format "Bearer <token>"
+	// Extract the token from the Bearer scheme
 	parts := strings.Split(authHeader, " ")
 	if len(parts) != 2 || parts[0] != "Bearer" {
+		authLogger.Warn("Invalid authorization header format", map[string]interface{}{
+			"header": authHeader,
+		})
 		return nil, &errors.ErrorResponse{
-			Message: errors.InvalidAuthorizationHeader,
-			Details: "The authorization header is not in the correct format",
+			Message: errors.Unauthorized,
+			Details: "Authorization header must be in the format 'Bearer <token>'",
 		}
 	}
 
-	tokenString := parts[1]
+	token := parts[1]
+	authLogger.Debug("Token extracted from authorization header")
 
-	// Parse and validate the token
-	token, err := tokenService.ValidateToken(tokenString)
-
-	if token == nil || err != nil || token.Typ != "access" {
+	// Validate the token
+	userToken, err := tokenService.ValidateToken(token)
+	if err != nil {
+		authLogger.Warn("Token validation failed", map[string]interface{}{
+			"error": err.Error(),
+		})
 		return nil, &errors.ErrorResponse{
-			Message: errors.InvalidAuthorizationHeader,
-			Details: "The token is invalid",
+			Message: errors.Unauthorized,
+			Details: "Invalid or expired token",
 		}
 	}
 
-	return token, nil
+	authLogger.Info("Token validation successful", map[string]interface{}{
+		"userID": userToken.UserID,
+	})
+
+	return userToken, nil
 }
