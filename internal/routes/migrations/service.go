@@ -1,10 +1,10 @@
 package migrations
 
 import (
-	"log"
 	"strings"
 	"time"
 
+	"cribeapp.com/cribe-server/internal/core/logger"
 	"github.com/golang-migrate/migrate/v4"
 )
 
@@ -26,24 +26,44 @@ type MigrationService struct {
 	filesReader       func() ([]MigrationFile, error)
 	getCurrentTime    func() time.Time
 	migrationsManager func() (MigrationExecutor, error)
+	logger            *logger.ContextualLogger
 }
 
 func NewMigrationService(service MigrationService) *MigrationService {
-	return &MigrationService{repo: service.repo, filesReader: service.filesReader, getCurrentTime: service.getCurrentTime, migrationsManager: service.migrationsManager}
+	return &MigrationService{
+		repo:              service.repo,
+		filesReader:       service.filesReader,
+		getCurrentTime:    service.getCurrentTime,
+		migrationsManager: service.migrationsManager,
+		logger:            logger.NewServiceLogger("MigrationService"),
+	}
 }
 
 func (s *MigrationService) fetchMigrations() []Migration {
-	files, err := s.filesReader()
+	s.logger.Debug("Fetching pending migrations")
 
+	files, err := s.filesReader()
 	if err != nil {
-		log.Printf("Unable to read migrations directory or it is empty: %v", err)
+		s.logger.Error("Unable to read migrations directory", map[string]interface{}{
+			"error": err.Error(),
+		})
 		return nil
 	}
 
-	lastExecutedMigration, _ := s.repo.GetLastMigration()
+	s.logger.Debug("Migration files loaded", map[string]interface{}{
+		"filesCount": len(files),
+	})
+
+	lastExecutedMigration, err := s.repo.GetLastMigration()
+	if err != nil {
+		s.logger.Warn("Could not get last executed migration", map[string]interface{}{
+			"error": err.Error(),
+		})
+	}
 
 	migrations := []Migration{}
 	lastUpIndex := len(files) / 2
+
 	for i := len(files) - 1; i >= 0; i-- {
 		file := files[i]
 		if !strings.HasSuffix(file.Name(), ".up.sql") {
@@ -52,7 +72,9 @@ func (s *MigrationService) fetchMigrations() []Migration {
 
 		name := strings.TrimSuffix(file.Name(), ".up.sql")
 		if name == lastExecutedMigration.Name {
-			log.Printf("Last executed migration: %s", name)
+			s.logger.Debug("Found last executed migration", map[string]interface{}{
+				"migrationName": name,
+			})
 			break
 		}
 
@@ -60,25 +82,42 @@ func (s *MigrationService) fetchMigrations() []Migration {
 		lastUpIndex--
 	}
 
+	s.logger.Info("Pending migrations identified", map[string]interface{}{
+		"pendingCount": len(migrations),
+	})
+
 	return migrations
 }
 
 func (s *MigrationService) execMigrationsUp() []Migration {
+	s.logger.Debug("Executing migrations up")
+
 	m, err := s.migrationsManager()
 	if err != nil {
-		log.Fatalf("Unable to create migration instance: %v", err)
+		s.logger.Error("Unable to create migration instance", map[string]interface{}{
+			"error": err.Error(),
+		})
+		return []Migration{}
 	}
 
 	// Force the migration to run
 	err = m.Up()
 	if err != nil && err != migrate.ErrNoChange {
-		log.Printf("Unable to migrate up: %v", err)
+		s.logger.Error("Unable to migrate up", map[string]interface{}{
+			"error": err.Error(),
+		})
+		return []Migration{}
+	}
+
+	if err == migrate.ErrNoChange {
+		s.logger.Info("No migrations to apply")
 		return []Migration{}
 	}
 
 	// Get the list of migrations that should have been run
 	migrations := s.fetchMigrations()
 	if len(migrations) == 0 {
+		s.logger.Info("No migrations were applied")
 		return []Migration{}
 	}
 
@@ -86,16 +125,29 @@ func (s *MigrationService) execMigrationsUp() []Migration {
 	topMigration := migrations[0]
 	err = s.repo.SaveMigration(topMigration.Name)
 	if err != nil {
-		log.Printf("Couldn't update migrations table: %v", err)
+		s.logger.Error("Couldn't update migrations table", map[string]interface{}{
+			"migrationName": topMigration.Name,
+			"error":         err.Error(),
+		})
+	} else {
+		s.logger.Info("Migration tracking updated", map[string]interface{}{
+			"migrationName": topMigration.Name,
+		})
 	}
+
+	s.logger.Info("Migrations executed successfully", map[string]interface{}{
+		"appliedCount": len(migrations),
+	})
 
 	return migrations
 }
 
 func (s *MigrationService) DoDryRunMigrations() []Migration {
+	s.logger.Debug("Performing migration dry run")
 	return s.fetchMigrations()
 }
 
 func (s *MigrationService) DoLiveRunMigrations() []Migration {
+	s.logger.Debug("Performing migration live run")
 	return s.execMigrationsUp()
 }

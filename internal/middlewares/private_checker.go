@@ -1,9 +1,10 @@
 package middlewares
 
 import (
-	"log"
 	"net/http"
 	"strings"
+
+	"cribeapp.com/cribe-server/internal/core/logger"
 )
 
 var privateRoutes = map[string]bool{
@@ -16,14 +17,32 @@ func isPrivateRoute(path string) bool {
 
 // Check if the route should go to the next handler
 func PrivateCheckerMiddleware(w http.ResponseWriter, r *http.Request) bool {
-	log.Println("Public middleware")
-	log.Println("Requested path", r.URL.Path)
+	checkerLogger := logger.NewMiddlewareLogger("PrivateCheckerMiddleware")
+
+	checkerLogger.Debug("Checking route privacy", map[string]interface{}{
+		"originalPath": r.URL.Path,
+	})
+
 	path := strings.TrimSuffix(r.URL.Path, "/")
-	log.Println("Trimmed path", path)
+	checkerLogger.Debug("Path after trimming", map[string]interface{}{
+		"trimmedPath": path,
+	})
 
 	if path == "/migrations" {
-		return r.Header.Get("x-migration-run") != "true"
+		migrationHeader := r.Header.Get("x-migration-run")
+		isPrivate := migrationHeader != "true"
+		checkerLogger.Debug("Migration route check", map[string]interface{}{
+			"header":    migrationHeader,
+			"isPrivate": isPrivate,
+		})
+		return isPrivate
 	}
 
-	return isPrivateRoute(path)
+	isPrivate := isPrivateRoute(path)
+	checkerLogger.Debug("Route privacy determined", map[string]interface{}{
+		"path":      path,
+		"isPrivate": isPrivate,
+	})
+
+	return isPrivate
 }
