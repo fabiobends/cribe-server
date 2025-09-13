@@ -67,7 +67,7 @@ func (handler *UserHandler) handleGet(w http.ResponseWriter, r *http.Request) {
 		statusCode := http.StatusBadRequest
 		utils.EncodeResponse(w, statusCode, &errors.ErrorResponse{
 			Message: errors.InvalidIdParameter,
-			Details: err.Error(),
+			Details: "Invalid user ID format",
 		})
 		return
 	}
