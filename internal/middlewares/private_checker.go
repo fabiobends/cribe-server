@@ -17,21 +17,21 @@ func isPrivateRoute(path string) bool {
 
 // Check if the route should go to the next handler
 func PrivateCheckerMiddleware(w http.ResponseWriter, r *http.Request) bool {
-	checkerLogger := logger.NewMiddlewareLogger("PrivateCheckerMiddleware")
+	log := logger.NewMiddlewareLogger("PrivateCheckerMiddleware")
 
-	checkerLogger.Debug("Checking route privacy", map[string]interface{}{
+	log.Debug("Checking route privacy", map[string]interface{}{
 		"originalPath": r.URL.Path,
 	})
 
 	path := strings.TrimSuffix(r.URL.Path, "/")
-	checkerLogger.Debug("Path after trimming", map[string]interface{}{
+	log.Debug("Path after trimming", map[string]interface{}{
 		"trimmedPath": path,
 	})
 
 	if path == "/migrations" {
 		migrationHeader := r.Header.Get("x-migration-run")
 		isPrivate := migrationHeader != "true"
-		checkerLogger.Debug("Migration route check", map[string]interface{}{
+		log.Debug("Migration route check", map[string]interface{}{
 			"header":    migrationHeader,
 			"isPrivate": isPrivate,
 		})
@@ -39,7 +39,7 @@ func PrivateCheckerMiddleware(w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	isPrivate := isPrivateRoute(path)
-	checkerLogger.Debug("Route privacy determined", map[string]interface{}{
+	log.Debug("Route privacy determined", map[string]interface{}{
 		"path":      path,
 		"isPrivate": isPrivate,
 	})

@@ -13,12 +13,12 @@ import (
 )
 
 func MainMiddleware(next http.Handler) http.Handler {
-	middlewareLogger := logger.NewMiddlewareLogger("MainMiddleware")
+	log := logger.NewMiddlewareLogger("MainMiddleware")
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 
-		middlewareLogger.Debug("Processing request", map[string]interface{}{
+		log.Debug("Processing request", map[string]interface{}{
 			"method": r.Method,
 			"path":   r.URL.Path,
 			"ip":     r.RemoteAddr,
@@ -30,7 +30,7 @@ func MainMiddleware(next http.Handler) http.Handler {
 		// Check if the route is public or unknown
 		isPrivate := PrivateCheckerMiddleware(w, r)
 		if isPrivate {
-			middlewareLogger.Debug("Route requires authentication", map[string]interface{}{
+			log.Debug("Route requires authentication", map[string]interface{}{
 				"path": r.URL.Path,
 			})
 
@@ -39,16 +39,16 @@ func MainMiddleware(next http.Handler) http.Handler {
 
 			// Check if dev auth is enabled (using feature flags)
 			if feature_flags.IsDevAuthEnabled() {
-				middlewareLogger.Debug("Dev auth is enabled, attempting dev authentication")
+				log.Debug("Dev auth is enabled, attempting dev authentication")
 				defaultEmail := feature_flags.GetDefaultEmail()
 				userID, authError = feature_flags.TryDevAuth(defaultEmail)
 				if authError != nil {
-					middlewareLogger.Warn("Dev auth failed", map[string]interface{}{
+					log.Warn("Dev auth failed", map[string]interface{}{
 						"email": defaultEmail, // Will be automatically masked
 						"error": authError.Details,
 					})
 				} else {
-					middlewareLogger.Info("Dev auth successful", map[string]interface{}{
+					log.Info("Dev auth successful", map[string]interface{}{
 						"email":  defaultEmail, // Will be automatically masked
 						"userID": userID,
 					})
@@ -57,10 +57,10 @@ func MainMiddleware(next http.Handler) http.Handler {
 
 			// If dev auth didn't work or isn't enabled, use normal token auth
 			if userID == 0 {
-				middlewareLogger.Debug("Using token-based authentication")
+				log.Debug("Using token-based authentication")
 				tokenService := auth.NewTokenServiceReady()
 				if tokenService == nil {
-					middlewareLogger.Error("Token service not configured")
+					log.Error("Token service not configured")
 					utils.EncodeResponse(w, http.StatusInternalServerError, &errors.ErrorResponse{
 						Message: errors.InternalServerError,
 						Details: "Token service not configured",
@@ -69,14 +69,14 @@ func MainMiddleware(next http.Handler) http.Handler {
 				}
 				userToken, err := AuthMiddleware(w, r, tokenService)
 				if err != nil {
-					middlewareLogger.Warn("Token authentication failed", map[string]interface{}{
+					log.Warn("Token authentication failed", map[string]interface{}{
 						"error": err.Details,
 					})
 					utils.EncodeResponse(w, http.StatusUnauthorized, err)
 					return
 				}
 				userID = userToken.UserID
-				middlewareLogger.Debug("Token authentication successful", map[string]interface{}{
+				log.Debug("Token authentication successful", map[string]interface{}{
 					"userID": userID,
 				})
 			}
@@ -86,7 +86,7 @@ func MainMiddleware(next http.Handler) http.Handler {
 			ctx = context.WithValue(ctx, UserIDContextKey, userID)
 			r = r.WithContext(ctx)
 		} else {
-			middlewareLogger.Debug("Route is public, no authentication required", map[string]interface{}{
+			log.Debug("Route is public, no authentication required", map[string]interface{}{
 				"path": r.URL.Path,
 			})
 		}
@@ -95,7 +95,7 @@ func MainMiddleware(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 
 		duration := time.Since(start)
-		middlewareLogger.Debug("Request completed", map[string]interface{}{
+		log.Debug("Request completed", map[string]interface{}{
 			"path":     r.URL.Path,
 			"method":   r.Method,
 			"duration": duration.String(),

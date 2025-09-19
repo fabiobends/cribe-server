@@ -18,9 +18,9 @@ type Response struct {
 }
 
 func Handler(port string) error {
-	routerLogger := logger.NewCoreLogger("Router")
+	log := logger.NewCoreLogger("Router")
 
-	routerLogger.Info("Initializing HTTP router and routes")
+	log.Info("Initializing HTTP router and routes")
 
 	mux := http.NewServeMux()
 
@@ -31,7 +31,7 @@ func Handler(port string) error {
 	mux.HandleFunc("/users/", users.HandleHTTPRequests)
 	mux.HandleFunc("/", utils.NotFound)
 
-	routerLogger.Debug("Registered routes", map[string]interface{}{
+	log.Debug("Registered routes", map[string]interface{}{
 		"routes": []string{"/auth/", "/migrations", "/status/", "/users/", "/"},
 	})
 
@@ -46,7 +46,7 @@ func Handler(port string) error {
 		MaxHeaderBytes: 1 << 20, // 1 MB
 	}
 
-	routerLogger.Info("Starting HTTP server", map[string]interface{}{
+	log.Info("Starting HTTP server", map[string]interface{}{
 		"port":           port,
 		"readTimeout":    "15s",
 		"writeTimeout":   "15s",
