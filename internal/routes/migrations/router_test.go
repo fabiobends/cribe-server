@@ -1,15 +1,17 @@
 package migrations
 
 import (
-	"log"
 	"net/http"
 	"testing"
 
+	"cribeapp.com/cribe-server/internal/core/logger"
 	"cribeapp.com/cribe-server/internal/utils"
 )
 
+var log = logger.NewCoreLogger("MigrationsRouterTest")
+
 func TestMigrations_IntegrationTests(t *testing.T) {
-	log.Printf("Setting up test environment")
+	log.Info("Setting up test environment", nil)
 	_ = utils.CleanDatabase()
 
 	resp := utils.MustSendTestRequest[[]Migration](utils.TestRequest{

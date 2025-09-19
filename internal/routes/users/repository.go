@@ -29,7 +29,7 @@ func (r *UserRepository) CreateUser(user UserDTO) (UserWithPassword, error) {
 		RETURNING *
 	`
 
-	result, err := r.Repository.Executor.QueryItem(query, user.FirstName, user.LastName, user.Email, user.Password)
+	result, err := r.Executor.QueryItem(query, user.FirstName, user.LastName, user.Email, user.Password)
 	if err != nil {
 		r.logger.Error("Failed to create user", map[string]interface{}{
 			"email": user.Email, // Will be automatically masked
@@ -53,7 +53,7 @@ func (r *UserRepository) GetUserById(id int) (UserWithPassword, error) {
 
 	query := "SELECT * FROM users WHERE id = $1"
 
-	result, err := r.Repository.Executor.QueryItem(query, id)
+	result, err := r.Executor.QueryItem(query, id)
 	if err != nil {
 		r.logger.Error("Failed to fetch user by ID", map[string]interface{}{
 			"userID": id,
@@ -76,7 +76,7 @@ func (r *UserRepository) GetUserByEmail(email string) (UserWithPassword, error) 
 
 	query := "SELECT * FROM users WHERE email = $1"
 
-	result, err := r.Repository.Executor.QueryItem(query, email)
+	result, err := r.Executor.QueryItem(query, email)
 	if err != nil {
 		r.logger.Error("Failed to fetch user by email", map[string]interface{}{
 			"email": email, // Will be automatically masked
@@ -96,5 +96,5 @@ func (r *UserRepository) GetUserByEmail(email string) (UserWithPassword, error) 
 func (r *UserRepository) GetUsers() ([]UserWithPassword, error) {
 	query := "SELECT * FROM users"
 
-	return r.Repository.Executor.QueryList(query)
+	return r.Executor.QueryList(query)
 }

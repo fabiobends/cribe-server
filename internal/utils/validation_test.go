@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"sync"
 	"testing"
 )
 
@@ -60,5 +61,37 @@ func TestValidation(t *testing.T) {
 		if result != test.expected {
 			t.Errorf("IsValidName(%s) = %v; want %v", test.name, result, test.expected)
 		}
+	}
+}
+
+// TestConcurrentValidation tests that validator initialization is thread-safe
+func TestConcurrentValidation(t *testing.T) {
+	// Reset validator to test initialization
+	validate = nil
+	initOnce = sync.Once{}
+
+	const numGoroutines = 100
+	var wg sync.WaitGroup
+	wg.Add(numGoroutines)
+
+	// Run validation functions concurrently
+	for range numGoroutines {
+		go func() {
+			defer wg.Done()
+			// Test different validation functions simultaneously
+			IsValidEmail("test@example.com")
+			IsValidPassword("password123")
+			IsValidName("John Doe")
+			ValidateStruct(struct {
+				Email string `validate:"required,email"`
+			}{Email: "test@example.com"})
+		}()
+	}
+
+	wg.Wait()
+
+	// Verify that the validator was initialized properly
+	if validate == nil {
+		t.Error("Validator should be initialized after concurrent access")
 	}
 }

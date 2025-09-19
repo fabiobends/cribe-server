@@ -41,8 +41,12 @@ func TestFeatureFlags_DevAuthEnabled(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			// Set environment variables
-			os.Setenv("APP_ENV", test.appEnv)
-			os.Setenv("DEFAULT_EMAIL", test.defaultEmail)
+			if err := os.Setenv("APP_ENV", test.appEnv); err != nil {
+				t.Fatalf("Failed to set APP_ENV: %v", err)
+			}
+			if err := os.Setenv("DEFAULT_EMAIL", test.defaultEmail); err != nil {
+				t.Fatalf("Failed to set DEFAULT_EMAIL: %v", err)
+			}
 
 			// Test the feature flag
 			featureFlags := GetFeatureFlags()
@@ -76,8 +80,12 @@ func TestFeatureFlags_DevAuthEnabled(t *testing.T) {
 			}
 
 			// Clean up
-			os.Unsetenv("APP_ENV")
-			os.Unsetenv("DEFAULT_EMAIL")
+			if err := os.Unsetenv("APP_ENV"); err != nil {
+				t.Logf("Warning: Failed to unset APP_ENV: %v", err)
+			}
+			if err := os.Unsetenv("DEFAULT_EMAIL"); err != nil {
+				t.Logf("Warning: Failed to unset DEFAULT_EMAIL: %v", err)
+			}
 		})
 	}
 }

@@ -2,23 +2,20 @@ package utils
 
 import (
 	"strings"
+	"sync"
 
 	"cribeapp.com/cribe-server/internal/errors"
 	"github.com/go-playground/validator/v10"
 )
 
 var validate *validator.Validate
-
-// InitValidator initializes the global validator instance
-func InitValidator() {
-	validate = validator.New()
-}
+var initOnce sync.Once
 
 // ValidateStruct validates a struct using validator tags and returns formatted errors
 func ValidateStruct(s interface{}) *errors.ErrorResponse {
-	if validate == nil {
-		InitValidator()
-	}
+	initOnce.Do(func() {
+		validate = validator.New()
+	})
 
 	err := validate.Struct(s)
 	if err == nil {
@@ -89,9 +86,9 @@ func formatValidationError(err validator.FieldError) string {
 
 // IsValidEmail checks if an email address is valid using the validator package
 func IsValidEmail(email string) bool {
-	if validate == nil {
-		InitValidator()
-	}
+	initOnce.Do(func() {
+		validate = validator.New()
+	})
 
 	err := validate.Var(email, "required,email")
 	return err == nil
@@ -99,9 +96,9 @@ func IsValidEmail(email string) bool {
 
 // IsValidPassword checks if a password meets basic requirements
 func IsValidPassword(password string) bool {
-	if validate == nil {
-		InitValidator()
-	}
+	initOnce.Do(func() {
+		validate = validator.New()
+	})
 
 	// Basic password validation: minimum 8 characters
 	err := validate.Var(password, "required,min=8")
@@ -110,9 +107,9 @@ func IsValidPassword(password string) bool {
 
 // IsValidName checks if a name is valid (required, alphabetic characters and spaces)
 func IsValidName(name string) bool {
-	if validate == nil {
-		InitValidator()
-	}
+	initOnce.Do(func() {
+		validate = validator.New()
+	})
 
 	// Allow alphabetic characters, spaces, hyphens, and apostrophes for names
 	err := validate.Var(name, "required,min=1,max=100")

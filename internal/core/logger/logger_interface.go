@@ -62,7 +62,4 @@ type Logger interface {
 
 	// Error logs error messages (highest priority)
 	Error(message string, context *LogContext)
-
-	// IsEnabled checks if a specific log level is enabled
-	IsEnabled(level LogLevel) bool
 }

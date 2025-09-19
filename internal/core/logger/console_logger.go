@@ -51,11 +51,6 @@ func (c *ConsoleLogger) Error(message string, context *LogContext) {
 	c.log(ErrorLevel, message, context)
 }
 
-// IsEnabled checks if a specific log level is enabled
-func (c *ConsoleLogger) IsEnabled(level LogLevel) bool {
-	return true
-}
-
 // log is the internal logging method that handles formatting and output
 func (c *ConsoleLogger) log(level LogLevel, message string, context *LogContext) {
 	timestamp := time.Now().Format("15:04:05")
@@ -110,9 +105,16 @@ func (c *ConsoleLogger) log(level LogLevel, message string, context *LogContext)
 
 	// Output to appropriate stream
 	if level >= ErrorLevel {
-		fmt.Fprintln(os.Stderr, logLine)
+		if _, err := fmt.Fprintln(os.Stderr, logLine); err != nil {
+			// If we can't log to stderr, try stdout as fallback
+			_, _ = fmt.Fprintf(os.Stdout, "Failed to write to stderr: %v\n", err)
+		}
 	} else {
-		fmt.Fprintln(os.Stdout, logLine)
+		if _, err := fmt.Fprintln(os.Stdout, logLine); err != nil {
+			// If we can't log to stdout, there's not much we can do
+			// This is a best effort - we don't want to panic or exit
+			_, _ = fmt.Fprintf(os.Stderr, "Failed to write to stdout: %v\n", err)
+		}
 	}
 }
 

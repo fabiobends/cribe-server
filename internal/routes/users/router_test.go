@@ -1,17 +1,19 @@
 package users
 
 import (
-	"log"
 	"net/http"
 	"testing"
 
+	"cribeapp.com/cribe-server/internal/core/logger"
 	"cribeapp.com/cribe-server/internal/errors"
 	"cribeapp.com/cribe-server/internal/routes/migrations"
 	"cribeapp.com/cribe-server/internal/utils"
 )
 
+var log = logger.NewCoreLogger("UsersRouterTest")
+
 func TestUsers_IntegrationTests(t *testing.T) {
-	log.Printf("Setting up test environment")
+	log.Info("Setting up test environment", nil)
 	utils.CleanDatabaseAndRunMigrations(migrations.HandleHTTPRequests)
 
 	t.Run("shouldn't get a user since the database is empty", func(t *testing.T) {

@@ -10,4 +10,7 @@ linters:
     - staticcheck # Advanced checks for best practices
     - unused     # Detects unused code
     - gocritic   # Suggests code improvements
-    - gofmt      # Checks formatting
+
+formatters:
+  enable:
+    - gofmt      # Format Go source code

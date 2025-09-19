@@ -3,19 +3,21 @@ package auth
 import (
 	"bytes"
 	"encoding/json"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"cribeapp.com/cribe-server/internal/core/logger"
 	"cribeapp.com/cribe-server/internal/errors"
 	"cribeapp.com/cribe-server/internal/routes/migrations"
 	"cribeapp.com/cribe-server/internal/routes/users"
 	"cribeapp.com/cribe-server/internal/utils"
 )
 
+var log = logger.NewCoreLogger("AuthRouterTest")
+
 func TestAuthRouter_IntegrationTests(t *testing.T) {
-	log.Printf("Setting up test environment")
+	log.Info("Setting up test environment", nil)
 	utils.CleanDatabaseAndRunMigrations(migrations.HandleHTTPRequests)
 	var refreshToken string
 

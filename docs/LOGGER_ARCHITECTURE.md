@@ -18,7 +18,6 @@ classDiagram
         +Info(message string, context *LogContext)
         +Warn(message string, context *LogContext)
         +Error(message string, context *LogContext)
-        +IsEnabled(level LogLevel) bool
     }
 
     class ConsoleLogger {
@@ -30,7 +29,6 @@ classDiagram
         +Info(message string, context *LogContext)
         +Warn(message string, context *LogContext)
         +Error(message string, context *LogContext)
-        +IsEnabled(level LogLevel) bool
         -log(level LogLevel, message string, context *LogContext)
         -maskSensitiveData(message string) string
         -formatExtra(context *LogContext) string
@@ -56,7 +54,7 @@ sequenceDiagram
     LS->>Env: Read LOG_DISABLE_EMOJIS
     LS->>CL: Initialize with options
     App->>LS: Log message
-    LS->>LS: Check level filter
+    LS->>LS: shouldLog() check
     alt Message passes filter
         LS->>CL: Forward to implementation
         CL->>Console: Output with colors/emojis
