@@ -3,6 +3,7 @@ package utils
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"time"
@@ -31,7 +32,7 @@ func CleanDatabaseAndRunMigrations(handlerFunc http.HandlerFunc) error {
 		log.Error("Failed to clean database", map[string]interface{}{
 			"error": err.Error(),
 		})
-		panic(err) // Use panic instead of log.Fatalf for test utilities
+		return err
 	}
 	result := MustSendTestRequest[any](TestRequest{
 		Method:      http.MethodPost,
@@ -43,8 +44,9 @@ func CleanDatabaseAndRunMigrations(handlerFunc http.HandlerFunc) error {
 			"status_code": result.StatusCode,
 			"response":    result.Body,
 		})
-		panic("Failed to run migrations") // Use panic instead of log.Fatalf for test utilities
+		return fmt.Errorf("failed to run migrations: status code %d", result.StatusCode)
 	}
+	return nil
 }
 
 // TestRequest represents a test HTTP request with its configuration
@@ -153,7 +155,7 @@ func MustSendTestRequest[T any](req TestRequest) *TestResponse[T] {
 		log.Error("Failed to send test request", map[string]interface{}{
 			"error": err.Error(),
 		})
-		panic(err) // Use panic instead of log.Fatalf for test utilities
+		panic(err) // Panic is acceptable in test utility "Must" functions
 	}
 	log.Debug("Test request completed successfully", nil)
 	return resp

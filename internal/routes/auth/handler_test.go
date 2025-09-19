@@ -31,7 +31,10 @@ func TestAuthHandler_HandleRequest(t *testing.T) {
 			t.Errorf("Expected status code %v, got %v", http.StatusCreated, w.Code)
 		}
 
-		response := utils.DecodeResponse[users.UserWithPassword](w.Body.String())
+		response, err := utils.DecodeResponse[users.UserWithPassword](w.Body.String())
+		if err != nil {
+			t.Fatalf("Failed to decode response: %v", err)
+		}
 
 		if response.ID != 1 {
 			t.Errorf("Expected ID %v, got %v", 1, response.ID)
@@ -52,7 +55,10 @@ func TestAuthHandler_HandleRequest(t *testing.T) {
 			t.Errorf("Expected status code %v, got %v", http.StatusOK, w.Code)
 		}
 
-		response := utils.DecodeResponse[LoginResponse](w.Body.String())
+		response, err := utils.DecodeResponse[LoginResponse](w.Body.String())
+		if err != nil {
+			t.Fatalf("Failed to decode response: %v", err)
+		}
 
 		if response.AccessToken == "" {
 			t.Errorf("Expected access token, got empty string")
@@ -73,7 +79,10 @@ func TestAuthHandler_HandleRequest(t *testing.T) {
 			t.Errorf("Expected status code %v, got %v", http.StatusOK, w.Code)
 		}
 
-		response := utils.DecodeResponse[RefreshTokenResponse](w.Body.String())
+		response, err := utils.DecodeResponse[RefreshTokenResponse](w.Body.String())
+		if err != nil {
+			t.Fatalf("Failed to decode response: %v", err)
+		}
 
 		if response.AccessToken == "" {
 			t.Errorf("Expected access token, got empty string")

@@ -43,7 +43,10 @@ func TestStatusHandler_GetStatus(t *testing.T) {
 		},
 	}
 
-	result := utils.DecodeResponse[StatusInfo](w.Body.String())
+	result, err := utils.DecodeResponse[StatusInfo](w.Body.String())
+	if err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
 
 	if result != expected {
 		t.Errorf("expected %q, got %q", expected, result)

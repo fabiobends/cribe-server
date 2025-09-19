@@ -18,7 +18,9 @@ var log = logger.NewCoreLogger("AuthRouterTest")
 
 func TestAuthRouter_IntegrationTests(t *testing.T) {
 	log.Info("Setting up test environment", nil)
-	utils.CleanDatabaseAndRunMigrations(migrations.HandleHTTPRequests)
+	if err := utils.CleanDatabaseAndRunMigrations(migrations.HandleHTTPRequests); err != nil {
+		t.Fatalf("Failed to setup test environment: %v", err)
+	}
 	var refreshToken string
 
 	t.Run("should register a user", func(t *testing.T) {
@@ -38,7 +40,10 @@ func TestAuthRouter_IntegrationTests(t *testing.T) {
 			t.Errorf("Expected status code %v, got %v", http.StatusCreated, w.Code)
 		}
 
-		response := utils.DecodeResponse[users.UserWithPassword](w.Body.String())
+		response, err := utils.DecodeResponse[users.UserWithPassword](w.Body.String())
+		if err != nil {
+			t.Fatalf("Failed to decode response: %v", err)
+		}
 		if response.ID == 0 {
 			t.Errorf("Expected user ID to be non-zero, got %v", response.ID)
 		}
@@ -59,7 +64,10 @@ func TestAuthRouter_IntegrationTests(t *testing.T) {
 			t.Errorf("Expected status code %v, got %v", http.StatusOK, w.Code)
 		}
 
-		response := utils.DecodeResponse[LoginResponse](w.Body.String())
+		response, err := utils.DecodeResponse[LoginResponse](w.Body.String())
+		if err != nil {
+			t.Fatalf("Failed to decode response: %v", err)
+		}
 		if response.AccessToken == "" {
 			t.Errorf("Expected access token to be non-empty, got %v", response.AccessToken)
 		}
@@ -85,7 +93,10 @@ func TestAuthRouter_IntegrationTests(t *testing.T) {
 			t.Errorf("Expected status code %v, got %v", http.StatusOK, w.Code)
 		}
 
-		response := utils.DecodeResponse[RefreshTokenResponse](w.Body.String())
+		response, err := utils.DecodeResponse[RefreshTokenResponse](w.Body.String())
+		if err != nil {
+			t.Fatalf("Failed to decode response: %v", err)
+		}
 		if response.AccessToken == "" {
 			t.Errorf("Expected access token to be non-empty, got %v", response.AccessToken)
 		}
@@ -105,7 +116,10 @@ func TestAuthRouter_IntegrationTests(t *testing.T) {
 			t.Errorf("Expected status code %v, got %v", http.StatusUnauthorized, w.Code)
 		}
 
-		response := utils.DecodeResponse[errors.ErrorResponse](w.Body.String())
+		response, err := utils.DecodeResponse[errors.ErrorResponse](w.Body.String())
+		if err != nil {
+			t.Fatalf("Failed to decode response: %v", err)
+		}
 		if response.Message != errors.InvalidRequestBody {
 			t.Errorf("Expected message to be %s, got %v", errors.InvalidRequestBody, response.Message)
 		}

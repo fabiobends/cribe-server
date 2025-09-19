@@ -32,7 +32,10 @@ func TestUserHandler_HandleRequest(t *testing.T) {
 			t.Errorf("Expected status code %v, got %v", http.StatusCreated, w.Code)
 		}
 
-		result := utils.DecodeResponse[User](w.Body.String())
+		result, err := utils.DecodeResponse[User](w.Body.String())
+		if err != nil {
+			t.Fatalf("Failed to decode response: %v", err)
+		}
 
 		if result.FirstName != userDTO.FirstName {
 			t.Errorf("Expected first name %v, got %v", userDTO.FirstName, result.FirstName)
@@ -57,7 +60,10 @@ func TestUserHandler_HandleRequest(t *testing.T) {
 			t.Errorf("Expected status code %v, got %v", http.StatusBadRequest, w.Code)
 		}
 
-		result := utils.DecodeResponse[errors.ErrorResponse](w.Body.String())
+		result, err := utils.DecodeResponse[errors.ErrorResponse](w.Body.String())
+		if err != nil {
+			t.Fatalf("Failed to decode response: %v", err)
+		}
 
 		if len(result.Details) == 0 {
 			t.Error("Expected validation errors, got none")
@@ -74,7 +80,10 @@ func TestUserHandler_HandleRequest(t *testing.T) {
 			t.Errorf("Expected status code %v, got %v", http.StatusOK, w.Code)
 		}
 
-		result := utils.DecodeResponse[User](w.Body.String())
+		result, err := utils.DecodeResponse[User](w.Body.String())
+		if err != nil {
+			t.Fatalf("Failed to decode response: %v", err)
+		}
 
 		if result.ID != 1 {
 			t.Errorf("Expected user id %v, got %v", 1, result.ID)
@@ -91,7 +100,10 @@ func TestUserHandler_HandleRequest(t *testing.T) {
 			t.Errorf("Expected status code %v, got %v", http.StatusOK, w.Code)
 		}
 
-		result := utils.DecodeResponse[[]User](w.Body.String())
+		result, err := utils.DecodeResponse[[]User](w.Body.String())
+		if err != nil {
+			t.Fatalf("Failed to decode response: %v", err)
+		}
 
 		if len(result) < 1 {
 			t.Errorf("Expected at least 1 user, got %v", len(result))

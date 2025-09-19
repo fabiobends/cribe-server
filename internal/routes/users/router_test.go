@@ -14,7 +14,9 @@ var log = logger.NewCoreLogger("UsersRouterTest")
 
 func TestUsers_IntegrationTests(t *testing.T) {
 	log.Info("Setting up test environment", nil)
-	utils.CleanDatabaseAndRunMigrations(migrations.HandleHTTPRequests)
+	if err := utils.CleanDatabaseAndRunMigrations(migrations.HandleHTTPRequests); err != nil {
+		t.Fatalf("Failed to setup test environment: %v", err)
+	}
 
 	t.Run("shouldn't get a user since the database is empty", func(t *testing.T) {
 		resp := utils.MustSendTestRequest[errors.ErrorResponse](utils.TestRequest{

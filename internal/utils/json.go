@@ -31,7 +31,7 @@ func EncodeResponse(w http.ResponseWriter, statusCode int, response any) {
 	}
 }
 
-func DecodeResponse[T any](response string) T {
+func DecodeResponse[T any](response string) (T, error) {
 	var decodedResponse T
 	err := json.Unmarshal([]byte(response), &decodedResponse)
 
@@ -40,10 +40,10 @@ func DecodeResponse[T any](response string) T {
 			"error":    err.Error(),
 			"response": response,
 		})
-		panic(err) // Use panic instead of log.Fatal for utility functions
+		return decodedResponse, err
 	}
 
-	return decodedResponse
+	return decodedResponse, nil
 }
 
 func SanitizeJSONString(response string) string {
