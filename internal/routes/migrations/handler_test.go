@@ -30,7 +30,10 @@ func TestMigrationsHandler_GetMigrations(t *testing.T) {
 
 	handler.HandleRequest(w, r)
 
-	result := utils.DecodeResponse[[]Migration](w.Body.String())
+	result, err := utils.DecodeResponse[[]Migration](w.Body.String())
+	if err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
 
 	if fmt.Sprint(result) != fmt.Sprint(expected) {
 		t.Errorf("expected %q, got %q", expected, result)
@@ -45,7 +48,10 @@ func TestMigrationsHandler_PostMigrations(t *testing.T) {
 
 	handler.HandleRequest(w, r)
 
-	firstResult := utils.DecodeResponse[[]Migration](w.Body.String())
+	firstResult, err := utils.DecodeResponse[[]Migration](w.Body.String())
+	if err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
 	firstExpected := []Migration{
 		{
 			ID:        2,
@@ -69,7 +75,10 @@ func TestMigrationsHandler_PostMigrations(t *testing.T) {
 
 	handler.HandleRequest(w, r)
 
-	secondResult := utils.DecodeResponse[[]Migration](w.Body.String())
+	secondResult, err := utils.DecodeResponse[[]Migration](w.Body.String())
+	if err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
 	secondExpected := []Migration{}
 
 	if fmt.Sprint(secondResult) != fmt.Sprint(secondExpected) {
