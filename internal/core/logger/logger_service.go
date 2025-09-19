@@ -35,9 +35,10 @@ func (ls *LoggerService) configure() {
 		// Check if logging is enabled via environment variable
 		logLevel := strings.ToUpper(strings.TrimSpace(os.Getenv("LOG_LEVEL")))
 
-		// Default to INFO level if not specified
-		if logLevel == "" {
-			logLevel = "INFO"
+		if logLevel == "" || logLevel == "NONE" {
+			ls.enabled = false
+			ls.configured = true
+			return
 		}
 
 		// Set minimum log level
@@ -50,11 +51,8 @@ func (ls *LoggerService) configure() {
 			ls.minLevel = WarnLevel
 		case "ERROR":
 			ls.minLevel = ErrorLevel
-		case "NONE", "OFF", "DISABLED":
-			ls.enabled = false
-			ls.configured = true
-			return
 		default:
+			// For unknown log levels, default to INFO
 			ls.minLevel = InfoLevel
 		}
 
@@ -110,29 +108,4 @@ func (ls *LoggerService) shouldLog(level LogLevel) bool {
 		ls.configure()
 	}
 	return ls.enabled && level >= ls.minLevel
-}
-
-// SetLogger allows setting a custom logger implementation (useful for testing)
-func (ls *LoggerService) SetLogger(logger Logger) {
-	ls.logger = logger
-}
-
-// SetMinLevel allows changing the minimum log level at runtime
-func (ls *LoggerService) SetMinLevel(level LogLevel) {
-	ls.minLevel = level
-}
-
-// SetEnabled allows enabling/disabling logging at runtime
-func (ls *LoggerService) SetEnabled(enabled bool) {
-	ls.enabled = enabled
-}
-
-// GetMinLevel returns the current minimum log level
-func (ls *LoggerService) GetMinLevel() LogLevel {
-	return ls.minLevel
-}
-
-// IsLoggingEnabled returns whether logging is currently enabled
-func (ls *LoggerService) IsLoggingEnabled() bool {
-	return ls.enabled
 }

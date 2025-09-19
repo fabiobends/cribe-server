@@ -3,11 +3,14 @@ package utils
 import (
 	"bytes"
 	"encoding/json"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"time"
+
+	"cribeapp.com/cribe-server/internal/core/logger"
 )
+
+var testLog = logger.NewUtilLogger("TestUtils")
 
 func MockGetCurrentTime() time.Time {
 	return time.Date(2025, time.January, 1, 1, 0, 0, 0, time.UTC)
@@ -22,10 +25,13 @@ func CleanDatabase() error {
 }
 
 func CleanDatabaseAndRunMigrations(handlerFunc http.HandlerFunc) {
-	log.Printf("Cleaning database and running migrations")
+	testLog.Info("Cleaning database and running migrations", nil)
 	err := CleanDatabase()
 	if err != nil {
-		log.Fatalf("Failed to clean database: %v", err)
+		testLog.Error("Failed to clean database", map[string]interface{}{
+			"error": err.Error(),
+		})
+		panic(err) // Use panic instead of log.Fatalf for test utilities
 	}
 	result := MustSendTestRequest[any](TestRequest{
 		Method:      http.MethodPost,
@@ -33,7 +39,11 @@ func CleanDatabaseAndRunMigrations(handlerFunc http.HandlerFunc) {
 		HandlerFunc: handlerFunc,
 	})
 	if result.StatusCode != http.StatusCreated {
-		log.Fatalf("Failed to run migrations: %v", result.Body)
+		testLog.Error("Failed to run migrations", map[string]interface{}{
+			"status_code": result.StatusCode,
+			"response":    result.Body,
+		})
+		panic("Failed to run migrations") // Use panic instead of log.Fatalf for test utilities
 	}
 }
 
@@ -55,64 +65,79 @@ type TestResponse[T any] struct {
 
 // SendTestRequest sends an HTTP request and returns the response
 func SendTestRequest[T any](req TestRequest) (*TestResponse[T], error) {
-	log.Printf("Starting test request: Method=%s, URL=%s", req.Method, req.URL)
+	testLog.Debug("Starting test request", map[string]interface{}{
+		"method": req.Method,
+		"url":    req.URL,
+	})
 
 	// Create request body if provided
 	var bodyReader *bytes.Buffer
 	if req.Body != nil {
-		log.Printf("Marshaling request body: %+v", req.Body)
+		testLog.Debug("Marshaling request body", map[string]interface{}{
+			"body": req.Body,
+		})
 		body, err := json.Marshal(req.Body)
 		if err != nil {
-			log.Fatalf("Failed to marshal request body: %v", err)
+			testLog.Error("Failed to marshal request body", map[string]interface{}{
+				"error": err.Error(),
+			})
 			return nil, err
 		}
 		bodyReader = bytes.NewBuffer(body)
-		log.Printf("Request body marshaled successfully")
+		testLog.Debug("Request body marshaled successfully", nil)
 	} else {
 		bodyReader = bytes.NewBuffer(nil)
 	}
 
 	// Create HTTP request
-	log.Printf("Creating new HTTP request")
+	testLog.Debug("Creating new HTTP request", nil)
 	httpReq, err := http.NewRequest(req.Method, req.URL, bodyReader)
 	if err != nil {
-		log.Fatalf("Failed to create HTTP request: %v", err)
+		testLog.Error("Failed to create HTTP request", map[string]interface{}{
+			"error": err.Error(),
+		})
 		return nil, err
 	}
-	log.Printf("HTTP request created successfully")
+	testLog.Debug("HTTP request created successfully", nil)
 
 	// Set default headers
-	log.Printf("Setting default Content-Type header")
+	testLog.Debug("Setting default Content-Type header", nil)
 	httpReq.Header.Set("Content-Type", "application/json")
 
 	// Set additional headers if provided
 	if len(req.Headers) > 0 {
-		log.Printf("Setting additional headers: %v", req.Headers)
+		testLog.Debug("Setting additional headers", map[string]interface{}{
+			"headers": req.Headers,
+		})
 		for key, value := range req.Headers {
 			httpReq.Header.Set(key, value)
 		}
 	}
 
 	// Create response recorder
-	log.Printf("Creating response recorder")
+	testLog.Debug("Creating response recorder", nil)
 	rec := httptest.NewRecorder()
 
 	// Call handler
-	log.Printf("Calling handler function")
+	testLog.Debug("Calling handler function", nil)
 	req.HandlerFunc(rec, httpReq)
-	log.Printf("Handler function completed. Status code: %d", rec.Code)
+	testLog.Debug("Handler function completed", map[string]interface{}{
+		"status_code": rec.Code,
+	})
 
 	// Decode response based on type
-	log.Printf("Decoding response body")
+	testLog.Debug("Decoding response body", nil)
 	var responseBody T
 	if err := json.NewDecoder(rec.Body).Decode(&responseBody); err != nil {
-		log.Printf("Failed to decode response body: %v", err)
+		testLog.Warn("Failed to decode response body", map[string]interface{}{
+			"error": err.Error(),
+		})
 		return nil, err
 	}
-	log.Printf("Response body decoded successfully")
+	testLog.Debug("Response body decoded successfully", nil)
 
 	// Return response
-	log.Printf("Returning test response")
+	testLog.Debug("Returning test response", nil)
 	return &TestResponse[T]{
 		StatusCode: rec.Code,
 		Body:       responseBody,
@@ -122,11 +147,14 @@ func SendTestRequest[T any](req TestRequest) (*TestResponse[T], error) {
 
 // MustSendTestRequest is a helper that panics if SendTestRequest fails
 func MustSendTestRequest[T any](req TestRequest) *TestResponse[T] {
-	log.Printf("Starting MustSendTestRequest")
+	testLog.Debug("Starting MustSendTestRequest", nil)
 	resp, err := SendTestRequest[T](req)
 	if err != nil {
-		log.Fatalf("Failed to send test request: %v", err)
+		testLog.Error("Failed to send test request", map[string]interface{}{
+			"error": err.Error(),
+		})
+		panic(err) // Use panic instead of log.Fatalf for test utilities
 	}
-	log.Printf("Test request completed successfully")
+	testLog.Debug("Test request completed successfully", nil)
 	return resp
 }

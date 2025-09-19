@@ -2,23 +2,29 @@ package utils
 
 import (
 	"context"
-	"log"
 	"os"
 
+	"cribeapp.com/cribe-server/internal/core/logger"
 	"github.com/jackc/pgx/v5"
 )
+
+var log = logger.NewUtilLogger("DatabaseUtils")
 
 func newConnection() *pgx.Conn {
 	databaseUrl := os.Getenv("DATABASE_URL")
 
 	if os.Getenv("APP_ENV") == "test" {
-		log.Printf("Using database: %s", databaseUrl)
+		log.Debug("Using database connection", map[string]interface{}{
+			"database_url": databaseUrl,
+		})
 	}
 
 	conn, err := pgx.Connect(context.Background(), databaseUrl)
 
 	if err != nil {
-		log.Printf("Unable to connect to database: %v", err)
+		log.Error("Unable to connect to database", map[string]interface{}{
+			"error": err.Error(),
+		})
 	}
 
 	return conn
@@ -29,16 +35,28 @@ func QueryItem[T any](query string, params ...any) (T, error) {
 
 	rows, err := conn.Query(context.Background(), query, params...)
 
-	defer conn.Close(context.Background())
+	defer func() {
+		if closeErr := conn.Close(context.Background()); closeErr != nil {
+			log.Error("Failed to close database connection", map[string]interface{}{
+				"error": closeErr.Error(),
+			})
+		}
+	}()
 
 	if err != nil {
-		log.Printf("Unable to query rows: %v", err)
+		log.Error("Unable to query rows", map[string]interface{}{
+			"error": err.Error(),
+			"query": query,
+		})
 	}
 
 	item, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByNameLax[T])
 
 	if err != nil && err.Error() != "no rows in result set" {
-		log.Printf("Unable to collect row: %v", err)
+		log.Error("Unable to collect row", map[string]interface{}{
+			"error": err.Error(),
+			"query": query,
+		})
 	}
 
 	return item, err
@@ -49,17 +67,29 @@ func QueryList[T any](query string, params ...any) ([]T, error) {
 
 	rows, err := conn.Query(context.Background(), query, params...)
 
-	defer conn.Close(context.Background())
+	defer func() {
+		if closeErr := conn.Close(context.Background()); closeErr != nil {
+			log.Error("Failed to close database connection", map[string]interface{}{
+				"error": closeErr.Error(),
+			})
+		}
+	}()
 
 	if err != nil {
-		log.Printf("Unable to query rows: %v", err)
+		log.Error("Unable to query rows", map[string]interface{}{
+			"error": err.Error(),
+			"query": query,
+		})
 		return []T{}, err
 	}
 
 	items, err := pgx.CollectRows(rows, pgx.RowToStructByNameLax[T])
 
 	if err != nil {
-		log.Printf("Unable to query rows: %v", err)
+		log.Error("Unable to query rows", map[string]interface{}{
+			"error": err.Error(),
+			"query": query,
+		})
 		return []T{}, err
 	}
 
@@ -71,10 +101,19 @@ func Exec(query string, params ...any) error {
 
 	_, err := conn.Exec(context.Background(), query, params...)
 
-	defer conn.Close(context.Background())
+	defer func() {
+		if closeErr := conn.Close(context.Background()); closeErr != nil {
+			log.Error("Failed to close database connection", map[string]interface{}{
+				"error": closeErr.Error(),
+			})
+		}
+	}()
 
 	if err != nil {
-		log.Printf("Unable to execute query: %v", err)
+		log.Error("Unable to execute query", map[string]interface{}{
+			"error": err.Error(),
+			"query": query,
+		})
 	}
 
 	return err

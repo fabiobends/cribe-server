@@ -23,11 +23,11 @@ func TestStatusIntegration(t *testing.T) {
 		t.Errorf("Expected version to be 17, got %s", resp.Body.Dependencies.Database.Version)
 	}
 
-	if !(resp.Body.Dependencies.Database.MaxConnections == 100) {
+	if resp.Body.Dependencies.Database.MaxConnections != 100 {
 		t.Errorf("Expected max connections to be 100, got %d", resp.Body.Dependencies.Database.MaxConnections)
 	}
 
-	if !(resp.Body.Dependencies.Database.OpenedConnections > 0) {
+	if resp.Body.Dependencies.Database.OpenedConnections <= 0 {
 		t.Errorf("Expected at least 1 opened connection, got %d", resp.Body.Dependencies.Database.OpenedConnections)
 	}
 

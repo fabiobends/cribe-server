@@ -2,11 +2,11 @@ package auth
 
 import (
 	"errors"
-	"log"
 	"os"
 	"strconv"
 	"time"
 
+	"cribeapp.com/cribe-server/internal/core/logger"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -39,17 +39,24 @@ type TokenServiceImpl struct {
 }
 
 func NewTokenServiceReady() TokenService {
+	log := logger.NewServiceLogger("TokenService")
 	secretKey := os.Getenv("JWT_SECRET")
 	accessTokenExpiration := os.Getenv("JWT_ACCESS_TOKEN_EXPIRATION_TIME_IN_MINUTES")
 	refreshTokenExpiration := os.Getenv("JWT_REFRESH_TOKEN_EXPIRATION_TIME_IN_DAYS")
 	accessTokenExpirationInt, err := strconv.Atoi(accessTokenExpiration)
 	if err != nil {
-		log.Println("Error converting access token expiration to int:", err)
+		log.Error("Error converting access token expiration to int", map[string]interface{}{
+			"error": err.Error(),
+			"value": accessTokenExpiration,
+		})
 		return nil
 	}
 	refreshTokenExpirationInt, err := strconv.Atoi(refreshTokenExpiration)
 	if err != nil {
-		log.Println("Error converting refresh token expiration to int:", err)
+		log.Error("Error converting refresh token expiration to int", map[string]interface{}{
+			"error": err.Error(),
+			"value": refreshTokenExpiration,
+		})
 		return nil
 	}
 
