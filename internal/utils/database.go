@@ -4,11 +4,8 @@ import (
 	"context"
 	"os"
 
-	"cribeapp.com/cribe-server/internal/core/logger"
 	"github.com/jackc/pgx/v5"
 )
-
-var log = logger.NewUtilLogger("DatabaseUtils")
 
 func newConnection() *pgx.Conn {
 	databaseUrl := os.Getenv("DATABASE_URL")

@@ -5,11 +5,8 @@ import (
 	"net/http"
 	"strings"
 
-	"cribeapp.com/cribe-server/internal/core/logger"
 	"cribeapp.com/cribe-server/internal/errors"
 )
-
-var jsonLog = logger.NewUtilLogger("JSONUtils")
 
 func DecodeBody[T any](r *http.Request) (T, *errors.ErrorResponse) {
 	var decodedBody T
@@ -39,7 +36,7 @@ func DecodeResponse[T any](response string) T {
 	err := json.Unmarshal([]byte(response), &decodedResponse)
 
 	if err != nil {
-		jsonLog.Error("Could not decode response", map[string]interface{}{
+		log.Error("Could not decode response", map[string]interface{}{
 			"error":    err.Error(),
 			"response": response,
 		})
