@@ -27,8 +27,8 @@ func TestStatusIntegration(t *testing.T) {
 		t.Errorf("Expected max connections to be 100, got %d", resp.Body.Dependencies.Database.MaxConnections)
 	}
 
-	if resp.Body.Dependencies.Database.OpenedConnections <= 0 {
-		t.Errorf("Expected at least 1 opened connection, got %d", resp.Body.Dependencies.Database.OpenedConnections)
+	if resp.Body.Dependencies.Database.OpenedConnections != 1 {
+		t.Errorf("Expected exactly 1 opened connection, got %d", resp.Body.Dependencies.Database.OpenedConnections)
 	}
 
 }
