@@ -86,8 +86,8 @@ Provides convenient access to logging with automatic context injection and funct
 
 | Level | Emoji | ANSI Color | Usage |
 |-------|-------|------------|-------|
-| Debug | 🔍 | White | Development debugging |
-| Info | ℹ️ | Light Blue | General information |
+| Debug | 🔍 | Light Blue | Development debugging |
+| Info | ℹ️ | White | General information |
 | Warn | ⚠️ | Yellow | Warning conditions |
 | Error | ❌ | Red | Error conditions |
 

@@ -35,15 +35,16 @@ func (ls *LoggerService) configure() {
 		// Check if logging is enabled via environment variable
 		logLevel := strings.ToUpper(strings.TrimSpace(os.Getenv("LOG_LEVEL")))
 
-		if logLevel == "" || logLevel == "NONE" {
+		// Handle NONE as explicit disable, but empty or invalid defaults to INFO
+		if logLevel == "NONE" {
 			ls.enabled = false
 			ls.configured = true
 			return
 		}
 
-		// Set minimum log level
+		// Set minimum log level following severity hierarchy
 		switch logLevel {
-		case "ALL", "DEBUG":
+		case "DEBUG":
 			ls.minLevel = DebugLevel
 		case "INFO":
 			ls.minLevel = InfoLevel
@@ -51,12 +52,12 @@ func (ls *LoggerService) configure() {
 			ls.minLevel = WarnLevel
 		case "ERROR":
 			ls.minLevel = ErrorLevel
+		case "": // Empty LOG_LEVEL defaults to INFO level behavior
+			ls.minLevel = InfoLevel
 		default:
 			// For unknown log levels, default to INFO
 			ls.minLevel = InfoLevel
-		}
-
-		// Check if colors should be disabled (useful for production logs)
+		} // Check if colors should be disabled (useful for production logs)
 		enableColors := !strings.EqualFold(os.Getenv("LOG_DISABLE_COLORS"), "true")
 
 		// Check if emojis should be disabled
