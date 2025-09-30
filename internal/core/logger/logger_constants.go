@@ -6,10 +6,10 @@ const (
 	ColorReset = "\033[0m"
 
 	// Text colors
-	ColorWhite     = "\033[1;37m" // Bright white for debug
-	ColorLightBlue = "\033[1;36m" // Light blue for info
-	ColorYellow    = "\033[1;33m" // Yellow for warn
-	ColorRed       = "\033[1;31m" // Red for error
+	ColorWhite     = "\033[0;37m"
+	ColorLightBlue = "\033[0;36m"
+	ColorYellow    = "\033[0;33m"
+	ColorRed       = "\033[0;31m"
 
 	// Text styles
 	StyleBold = "\033[1m"
@@ -31,9 +31,9 @@ const LogFormat = "%s%s %s %s %s%s"
 func GetLevelColor(level LogLevel) string {
 	switch level {
 	case DebugLevel:
-		return ColorWhite
-	case InfoLevel:
 		return ColorLightBlue
+	case InfoLevel:
+		return ColorWhite
 	case WarnLevel:
 		return ColorYellow
 	case ErrorLevel:
