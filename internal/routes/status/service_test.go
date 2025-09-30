@@ -41,6 +41,6 @@ func TestStatusService_GetStatus(t *testing.T) {
 	result := service.GetStatus()
 
 	if result != expected {
-		t.Errorf("expected %q, got %q", expected, result)
+		t.Errorf("Expected %q, got %q", expected, result)
 	}
 }

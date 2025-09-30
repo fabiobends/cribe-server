@@ -46,6 +46,9 @@ func (s *MockTokenService) GetRefreshToken(userID int) (string, error) {
 }
 
 func (s *MockTokenService) GenerateHash(text string) (string, error) {
+	if text == "invalid" {
+		return "", errors.New("failed to hash password")
+	}
 	return "hashed_password" + "_" + string(s.secretKey), nil
 }
 

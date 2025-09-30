@@ -22,9 +22,11 @@ func WithQueryExecutor(executor QueryExecutor) Option {
 	}
 }
 
+var db = utils.NewDatabase[DatabaseInfo](nil)
+
 func defaultExecutor() QueryExecutor {
 	return QueryExecutor{
-		QueryItem: utils.QueryItem[DatabaseInfo],
+		QueryItem: db.QueryItem,
 	}
 }
 

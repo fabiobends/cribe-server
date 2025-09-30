@@ -52,4 +52,16 @@ func TestAuthMiddleware(t *testing.T) {
 			t.Errorf("Expected nil, got a token object")
 		}
 	})
+
+	t.Run("shouldn't allow empty authorization header in private routes", func(t *testing.T) {
+		tokenService := auth.NewMockTokenService([]byte("test"), time.Hour, time.Hour*24*30, utils.MockGetCurrentTime)
+
+		request := httptest.NewRequest("GET", "/users", nil)
+		response := httptest.NewRecorder()
+
+		token, _ := AuthMiddleware(response, request, tokenService)
+		if token != nil {
+			t.Errorf("Expected nil, got a token object")
+		}
+	})
 }

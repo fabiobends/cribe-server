@@ -36,7 +36,7 @@ func TestMigrationsHandler_GetMigrations(t *testing.T) {
 	}
 
 	if fmt.Sprint(result) != fmt.Sprint(expected) {
-		t.Errorf("expected %q, got %q", expected, result)
+		t.Errorf("Expected %q, got %q", expected, result)
 	}
 
 }
@@ -66,7 +66,7 @@ func TestMigrationsHandler_PostMigrations(t *testing.T) {
 	}
 
 	if fmt.Sprint(firstResult) != fmt.Sprint(firstExpected) {
-		t.Errorf("expected %q, got %q", firstExpected, firstResult)
+		t.Errorf("Expected %q, got %q", firstExpected, firstResult)
 	}
 
 	// Second run
@@ -82,6 +82,17 @@ func TestMigrationsHandler_PostMigrations(t *testing.T) {
 	secondExpected := []Migration{}
 
 	if fmt.Sprint(secondResult) != fmt.Sprint(secondExpected) {
-		t.Errorf("expected %q, got %q", secondExpected, secondResult)
+		t.Errorf("Expected %q, got %q", secondExpected, secondResult)
+	}
+}
+
+func TestMigrationsHandler_UnknownMethod(t *testing.T) {
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodDelete, "/migrations", nil)
+
+	handler.HandleRequest(w, r)
+
+	if w.Code != http.StatusMethodNotAllowed {
+		t.Errorf("Expected status %d, got %d", http.StatusMethodNotAllowed, w.Code)
 	}
 }

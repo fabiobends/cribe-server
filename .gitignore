@@ -7,3 +7,7 @@ cribe-server
 
 # debug artifacts
 __debug_bin*
+
+# coverage
+coverage.out
+coverage.html

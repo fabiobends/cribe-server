@@ -25,6 +25,6 @@ func TestStatusRepository_GetDatabaseInfo(t *testing.T) {
 	result, _ := repo.GetDatabaseInfo()
 
 	if result != expected {
-		t.Errorf("expected %q, got %q", expected, result)
+		t.Errorf("Expected %q, got %q", expected, result)
 	}
 }

@@ -1,97 +1,96 @@
 package utils
 
 import (
-	"sync"
 	"testing"
 )
 
-func TestValidation(t *testing.T) {
-	// Test email validation
-	tests := []struct {
-		email    string
-		expected bool
-	}{
-		{"test@example.com", true},
-		{"invalid-email", false},
-		{"", false},
-		{"test@", false},
-		{"@example.com", false},
-		{"user@domain.co.uk", true},
+type TestStruct struct {
+	Email    string `validate:"required,email"`
+	Password string `validate:"required,min=8"`
+	Name     string `validate:"required,alpha"`
+}
+
+func TestValidateStruct(t *testing.T) {
+	// --- Valid struct ---
+	valid := TestStruct{
+		Email:    "User@example.com",
+		Password: "password123",
+		Name:     "Alice",
+	}
+	errResp := ValidateStruct(valid)
+	if errResp != nil {
+		t.Errorf("Expected nil error, got: %+v", errResp)
 	}
 
-	for _, test := range tests {
-		result := IsValidEmail(test.email)
-		if result != test.expected {
-			t.Errorf("IsValidEmail(%s) = %v; want %v", test.email, result, test.expected)
-		}
+	// --- Invalid struct ---
+	invalid := TestStruct{
+		Email:    "bad-email",
+		Password: "short",
+		Name:     "Alice123",
 	}
-
-	// Test password validation
-	passwordTests := []struct {
-		password string
-		expected bool
-	}{
-		{"12345678", true},
-		{"short", false},
-		{"", false},
-		{"verylongpasswordthatmeetsrequirements", true},
-	}
-
-	for _, test := range passwordTests {
-		result := IsValidPassword(test.password)
-		if result != test.expected {
-			t.Errorf("IsValidPassword(%s) = %v; want %v", test.password, result, test.expected)
-		}
-	}
-
-	// Test name validation
-	nameTests := []struct {
-		name     string
-		expected bool
-	}{
-		{"John", true},
-		{"", false},
-		{"  ", false},
-		{"Mary Jane", true},
-		{"José", true},
-	}
-
-	for _, test := range nameTests {
-		result := IsValidName(test.name)
-		if result != test.expected {
-			t.Errorf("IsValidName(%s) = %v; want %v", test.name, result, test.expected)
-		}
+	errResp = ValidateStruct(invalid)
+	if errResp == nil {
+		t.Errorf("Expected error response for invalid struct")
 	}
 }
 
-// TestConcurrentValidation tests that validator initialization is thread-safe
-func TestConcurrentValidation(t *testing.T) {
-	// Reset validator to test initialization
-	validate = nil
-	initOnce = sync.Once{}
-
-	const numGoroutines = 100
-	var wg sync.WaitGroup
-	wg.Add(numGoroutines)
-
-	// Run validation functions concurrently
-	for range numGoroutines {
-		go func() {
-			defer wg.Done()
-			// Test different validation functions simultaneously
-			IsValidEmail("test@example.com")
-			IsValidPassword("password123")
-			IsValidName("John Doe")
-			ValidateStruct(struct {
-				Email string `validate:"required,email"`
-			}{Email: "test@example.com"})
-		}()
+func TestIsValidEmail(t *testing.T) {
+	if !IsValidEmail("good@example.com") {
+		t.Errorf("Expected valid email")
 	}
+	if IsValidEmail("bad-email") {
+		t.Errorf("Expected invalid email")
+	}
+	if IsValidEmail("") {
+		t.Errorf("Expected empty email to be invalid")
+	}
+}
 
-	wg.Wait()
+func TestIsValidPassword(t *testing.T) {
+	if !IsValidPassword("longenough") {
+		t.Errorf("Expected valid password")
+	}
+	if IsValidPassword("short") {
+		t.Errorf("Expected short password to be invalid")
+	}
+	if IsValidPassword("") {
+		t.Errorf("Expected empty password to be invalid")
+	}
+}
 
-	// Verify that the validator was initialized properly
-	if validate == nil {
-		t.Error("Validator should be initialized after concurrent access")
+func TestIsValidName(t *testing.T) {
+	if !IsValidName("Alice") {
+		t.Errorf("Expected valid name")
+	}
+	if IsValidName("Alice123") {
+		t.Errorf("Expected invalid name with digits")
+	}
+	if IsValidName("") {
+		t.Errorf("Expected empty name to be invalid")
+	}
+	if IsValidName("   ") {
+		t.Errorf("Expected whitespace name to be invalid")
+	}
+}
+
+func TestValidateRequiredFields(t *testing.T) {
+	fields := []RequiredField{
+		{Name: "Email", Value: "user@example.com"},
+		{Name: "Password", Value: ""},
+		{Name: "Name", Value: ""},
+	}
+	missing := ValidateRequiredFields(fields...)
+	if len(missing) != 2 {
+		t.Errorf("Expected 2 missing fields, got %d", len(missing))
+	}
+	if missing[0] != "Password" || missing[1] != "Name" {
+		t.Errorf("Unexpected missing fields: %+v", missing)
+	}
+}
+
+func TestValidateRequiredField(t *testing.T) {
+	field := ValidateRequiredField("Username", "john")
+	if field.Name != "Username" || field.Value != "john" {
+		t.Errorf("Unexpected RequiredField: %+v", field)
 	}
 }

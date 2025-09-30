@@ -1,3 +1,4 @@
+//gp:build !test
 package status
 
 import (

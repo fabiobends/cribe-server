@@ -22,9 +22,10 @@ func WithQueryExecutor(executor QueryExecutor) Option {
 }
 
 func defaultExecutor() QueryExecutor {
+	db := utils.NewDatabase[Migration](nil)
 	return QueryExecutor{
-		QueryItem: utils.QueryItem[Migration],
-		Exec:      utils.Exec,
+		QueryItem: db.QueryItem,
+		Exec:      db.Exec,
 	}
 }
 
