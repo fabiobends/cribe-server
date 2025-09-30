@@ -40,9 +40,17 @@ test:  ## Run tests with test database
 	make services-up-test
 	@echo "Waiting for test database to be ready..."
 	@sleep 1
-	godotenv -f .env.test go test -v ./...
+	godotenv -f .env.test go test -tags=test -coverprofile=coverage.out ./...
 	@echo "Teardown test environment..."
 	make services-down-test
+	@echo "Generating coverage summary..."
+	./scripts/coverage-summary.sh
+	@echo "Checking coverage requirements..."
+	./scripts/coverage-check.sh
+
+view-coverage: ## Open coverage report in browser
+	open coverage.html
+
 
 # ---------------------------
 # UTILITIES
@@ -54,6 +62,8 @@ kill-port: ## Kill a port
 clean-temp: ## Clean temp files
 	rm -f cribe-server
 	rm -f __debug_bin*
+	rm -f coverage.out
+	rm -f coverage.html
 
 # ---------------------------
 # DOCKER & DATABASE COMMANDS

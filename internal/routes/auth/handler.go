@@ -164,9 +164,4 @@ func (handler *AuthHandler) handlePost(w http.ResponseWriter, r *http.Request) {
 		utils.EncodeResponse(w, http.StatusOK, response)
 		return
 	}
-
-	utils.EncodeResponse(w, http.StatusNotFound, &errors.ErrorResponse{
-		Message: errors.RouteNotFound,
-		Details: "Invalid path",
-	})
 }

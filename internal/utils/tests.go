@@ -22,7 +22,8 @@ func MockGetCurrentTimeISO() string {
 }
 
 func CleanDatabase() error {
-	return Exec("DROP SCHEMA public CASCADE; CREATE SCHEMA public;")
+	db := NewDatabase[any](nil)
+	return db.Exec("DROP SCHEMA public CASCADE; CREATE SCHEMA public;")
 }
 
 func CleanDatabaseAndRunMigrations(handlerFunc http.HandlerFunc) error {

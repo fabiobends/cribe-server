@@ -49,6 +49,21 @@ func TestStatusHandler_GetStatus(t *testing.T) {
 	}
 
 	if result != expected {
-		t.Errorf("expected %q, got %q", expected, result)
+		t.Errorf("Expected %q, got %q", expected, result)
 	}
+}
+
+func TestStatusHandler_DeleteStatus(t *testing.T) {
+	service := &MockService{}
+	handler := NewStatusHandler(service)
+
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodDelete, "/status", nil)
+
+	handler.HandleRequest(w, r)
+
+	if w.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("Expected status code %d, got %d", http.StatusMethodNotAllowed, w.Code)
+	}
+
 }

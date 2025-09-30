@@ -41,7 +41,7 @@ func NewMockUserRepositoryReady(presetUsers ...UserWithPassword) *UserRepository
 						return user, nil
 					}
 				}
-				return UserWithPassword{}, fmt.Errorf("user not found")
+				return UserWithPassword{}, fmt.Errorf("User not found")
 			}
 
 			// Get user by email
@@ -51,7 +51,7 @@ func NewMockUserRepositoryReady(presetUsers ...UserWithPassword) *UserRepository
 						return user, nil
 					}
 				}
-				return UserWithPassword{}, fmt.Errorf("user not found")
+				return UserWithPassword{}, fmt.Errorf("User not found")
 			}
 
 			// Insert user
@@ -82,7 +82,7 @@ func NewMockUserRepositoryReady(presetUsers ...UserWithPassword) *UserRepository
 				return user, nil
 			}
 
-			return UserWithPassword{}, fmt.Errorf("user not found")
+			return UserWithPassword{}, fmt.Errorf("User not found")
 		},
 		QueryListFunc: func(query string, args ...any) ([]UserWithPassword, error) {
 			return users, nil

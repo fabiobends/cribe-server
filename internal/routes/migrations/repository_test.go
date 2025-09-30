@@ -17,7 +17,7 @@ func TestMigrationRepository_GetLastMigration(t *testing.T) {
 	result, _ := repo.GetLastMigration()
 
 	if result != expected {
-		t.Errorf("expected %q, got %q", expected, result)
+		t.Errorf("Expected %q, got %q", expected, result)
 	}
 }
 
@@ -29,7 +29,7 @@ func TestMigrationRepository_SaveMigration(t *testing.T) {
 	err := repo.SaveMigration(name)
 
 	if err != nil {
-		t.Errorf("expected no error, got %v", err)
+		t.Errorf("Expected no error, got %v", err)
 	}
 
 	if len(spy.ExecCalledWith) == 0 {
@@ -39,6 +39,6 @@ func TestMigrationRepository_SaveMigration(t *testing.T) {
 	secondArgument := spy.ExecCalledWith[1]
 
 	if secondArgument != name {
-		t.Errorf("expected second argument to be %q, got %q", name, secondArgument)
+		t.Errorf("Expected second argument to be %q, got %q", name, secondArgument)
 	}
 }
