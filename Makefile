@@ -40,7 +40,7 @@ test:  ## Run tests with test database
 	make services-up-test
 	@echo "Waiting for test database to be ready..."
 	@sleep 1
-	godotenv -f .env.test go test -tags=test -coverprofile=coverage.out ./...
+	godotenv -f .env.test go test -p 1 -tags=test -coverprofile=coverage.out ./...
 	@echo "Teardown test environment..."
 	make services-down-test
 	@echo "Generating coverage summary..."
