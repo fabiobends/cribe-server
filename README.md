@@ -1,56 +1,86 @@
 # Cribe Server
 
-A backend server for the Cribe app.
+Go REST API server for the Cribe Flutter app with authentication, user management, and database operations.
 
-## 💡 Setup
+## 🚀 What it does
 
-1. Make sure [Go](https://go.dev) and your path are set up.
+- User authentication (JWT-based login/register)
+- User management (CRUD operations)
+- Database migrations
+- Health monitoring
 
-2. Make sure [Docker](https://www.docker.com/) is installed and running.
+## 🛠️ Prerequisites
 
-## ⬇️ Download packages
+- [Go 1.25+](https://go.dev/doc/install)
+- [Docker](https://docs.docker.com/get-docker/)
+- [Air](https://github.com/air-verse/air)
+- [Golangci-lint](https://golangci-lint.run/)
+- [Migrate](https://github.com/golang-migrate/migrate)
+- [GoDotEnv](https://github.com/joho/godotenv)
+- Make (usually pre-installed)
 
-Download the packages using the following command:
+## ⚙️ Quick Setup
 
-```bash
-go mod download
-```
+1. **Install dependencies:**
+   ```bash
+   go mod download
+   ```
 
-## ⚙️ Installing dependencies
+2. **Setup Git hooks:**
+   ```bash
+   make setup-hooks  # Run once or when hook scripts change
+   ```
 
-Install the following dependencies:
+3. **Start developing:**
+   ```bash
+   make dev
+   ```
 
-  - [Air](https://github.com/air-verse/air)
-  - [golangci-lint](https://golangci-lint.run/)
-  - [golang-migrate](https://github.com/golang-migrate/migrate/tree/master/cmd/migrate)
+## ⚙️ Environment
 
-## 🚀 Running the server
+Environment files are already set up. You can edit them if needed:
+- `.env.development` - Development configuration
+- `.env.test` - Test configuration
 
-Run the following commands to start the server:
-
-**Development (hot-reload)**
-```bash
-make dev
-```
-
-**Development (no hot-reload)**
-```bash
-make run
-```
-
-**Production**
-```bash
-make build
-./cribe-server
-```
-
-## 🧪 Testing
-Run the following command to run the tests:
+## 🚀 Commands
 
 ```bash
-make test
+make dev          # Start with hot reload
+make run          # Start without hot reload
+make test         # Run tests with coverage
+make build        # Build production binary
 ```
 
-## 📜 License
+## 🗃️ Database
 
-[MIT](LICENSE)
+```bash
+make services-up-dev     # Start dev database
+make migrate-up          # Run migrations
+make migrate-down        # Rollback migrations
+```
+
+## 🛣️ API Endpoints
+
+- `POST /auth/register` - Create account
+- `POST /auth/login` - Login
+- `POST /auth/refresh` - Refresh tokens
+- `GET /users` - List users (auth required)
+- `GET /users/{id}` - Get user (auth required)
+- `GET /status` - Health check
+
+## 🔧 Development
+
+**Feature Flags:**
+```bash
+export DEFAULT_EMAIL=dev@example.com  # Skip JWT authentication
+export LOG_LEVEL=DEBUG  # Set logging level (DEBUG, INFO, WARN, ERROR)
+```
+
+## 📚 Documentation
+
+- [API Routes](docs/ROUTES_DOCUMENTATION.md)
+- [Feature Flags](docs/FEATURE_FLAGS_DOCUMENTATION.md)
+- [Logger](docs/LOGGER_ARCHITECTURE.md)
+- [AI Instructions](docs/AI_INSTRUCTIONS.md)
+
+That's it! A Go API server with authentication and development conveniences.
