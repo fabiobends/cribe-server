@@ -22,6 +22,11 @@ const (
 	DatabaseNotFound = "Database record not found"
 )
 
+// External API Errors
+const (
+	ExternalAPIError = "External API error"
+)
+
 // Authentication and Authorization Errors
 const (
 	InvalidAuthorizationHeader = "Invalid authorization header"
