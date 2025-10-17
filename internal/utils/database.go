@@ -67,8 +67,6 @@ func (db *Database[T]) QueryItem(query string, params ...any) (T, error) {
 	}
 
 	rows, err := conn.Query(context.Background(), query, params...)
-	defer func() { _ = conn.Close(context.Background()) }()
-
 	if err != nil {
 		log.Error("Unable to query rows", map[string]interface{}{
 			"error": err.Error(),
@@ -76,6 +74,7 @@ func (db *Database[T]) QueryItem(query string, params ...any) (T, error) {
 		})
 		return zero, err
 	}
+	defer rows.Close()
 
 	item, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByNameLax[T])
 	if err != nil && err.Error() != "no rows in result set" {
@@ -96,8 +95,6 @@ func (db *Database[T]) QueryList(query string, params ...any) ([]T, error) {
 	}
 
 	rows, err := conn.Query(context.Background(), query, params...)
-	defer func() { _ = conn.Close(context.Background()) }()
-
 	if err != nil {
 		log.Error("Unable to query rows", map[string]interface{}{
 			"error": err.Error(),
@@ -105,6 +102,7 @@ func (db *Database[T]) QueryList(query string, params ...any) ([]T, error) {
 		})
 		return []T{}, err
 	}
+	defer rows.Close()
 
 	items, err := pgx.CollectRows(rows, pgx.RowToStructByNameLax[T])
 	if err != nil {
@@ -126,8 +124,6 @@ func (db *Database[T]) Exec(query string, params ...any) error {
 	}
 
 	_, err := conn.Exec(context.Background(), query, params...)
-	defer func() { _ = conn.Close(context.Background()) }()
-
 	if err != nil {
 		log.Error("Unable to execute query", map[string]interface{}{
 			"error": err.Error(),
