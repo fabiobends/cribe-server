@@ -26,6 +26,11 @@ The server has 4 main route groups that handle different functionality:
 - **Endpoints**: `/migrations`
 - **What it does**: Preview and run database migrations
 
+### **Podcasts Routes** (`/podcasts/*`)
+- **Purpose**: Manage podcasts and episodes
+- **Endpoints**: `/podcasts`, `/podcasts/{id}`, `/podcasts/sync`, `/podcasts/{id}/sync`
+- **What it does**: Fetch podcasts, sync with external API, manage episodes
+
 ## 🔐 Auth Routes Flow
 
 ```mermaid
@@ -131,6 +136,12 @@ flowchart TD
 ### **Migrations Routes**
 - **GET /migrations**: Shows what migrations would run (dry run)
 - **POST /migrations**: Actually runs pending database migrations
+
+### **Podcasts Routes**
+- **GET /podcasts**: Returns list of all podcasts (auto-syncs from external API if empty)
+- **GET /podcasts/{id}**: Returns specific podcast with episodes (auto-fetches episodes if empty)
+- **POST /podcasts/sync**: Manually syncs top podcasts from external API
+- **POST /podcasts/{id}/sync**: Manually syncs episodes for a specific podcast from external API
 
 ## 🔧 Common Route Patterns
 

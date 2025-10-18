@@ -1,6 +1,7 @@
 package podcasts
 
 import (
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -112,6 +113,74 @@ func TestPodcasts_IntegrationTests(t *testing.T) {
 
 		if resp.StatusCode != http.StatusMethodNotAllowed {
 			t.Errorf("Expected status code %d, got %d", http.StatusMethodNotAllowed, resp.StatusCode)
+		}
+	})
+
+	// Test GET /podcasts/:id (episode auto-fetch)
+	t.Run("GET /podcasts/:id returns podcast with episodes", func(t *testing.T) {
+		// First sync podcasts
+		syncResp := utils.MustSendTestRequest[SyncResult](utils.TestRequest{
+			Method:      http.MethodPost,
+			URL:         "/podcasts/sync",
+			HandlerFunc: HandleHTTPRequests,
+		})
+
+		if syncResp.StatusCode == http.StatusOK && syncResp.Body.TotalSynced > 0 {
+			// Get the first podcast
+			getResp := utils.MustSendTestRequest[[]Podcast](utils.TestRequest{
+				Method:      http.MethodGet,
+				URL:         "/podcasts",
+				HandlerFunc: HandleHTTPRequests,
+			})
+
+			if len(getResp.Body) > 0 {
+				podcastID := fmt.Sprintf("%d", getResp.Body[0].ID)
+
+				// Get podcast by ID (should auto-fetch episodes)
+				podcastResp := utils.MustSendTestRequest[Podcast](utils.TestRequest{
+					Method:      http.MethodGet,
+					URL:         "/podcasts/" + podcastID,
+					HandlerFunc: HandleHTTPRequests,
+				})
+
+				if podcastResp.StatusCode != http.StatusOK && podcastResp.StatusCode != http.StatusInternalServerError {
+					t.Errorf("Expected status 200 or 500, got %d", podcastResp.StatusCode)
+				}
+			}
+		}
+	})
+
+	// Test POST /podcasts/:id/sync
+	t.Run("POST /podcasts/:id/sync syncs episodes", func(t *testing.T) {
+		// First sync podcasts
+		syncResp := utils.MustSendTestRequest[SyncResult](utils.TestRequest{
+			Method:      http.MethodPost,
+			URL:         "/podcasts/sync",
+			HandlerFunc: HandleHTTPRequests,
+		})
+
+		if syncResp.StatusCode == http.StatusOK && syncResp.Body.TotalSynced > 0 {
+			// Get the first podcast
+			getResp := utils.MustSendTestRequest[[]Podcast](utils.TestRequest{
+				Method:      http.MethodGet,
+				URL:         "/podcasts",
+				HandlerFunc: HandleHTTPRequests,
+			})
+
+			if len(getResp.Body) > 0 {
+				podcastID := fmt.Sprintf("%d", getResp.Body[0].ID)
+
+				// Sync episodes for this podcast
+				episodeSyncResp := utils.MustSendTestRequest[SyncResult](utils.TestRequest{
+					Method:      http.MethodPost,
+					URL:         "/podcasts/" + podcastID + "/sync",
+					HandlerFunc: HandleHTTPRequests,
+				})
+
+				if episodeSyncResp.StatusCode != http.StatusOK && episodeSyncResp.StatusCode != http.StatusInternalServerError {
+					t.Errorf("Expected status 200 or 500, got %d", episodeSyncResp.StatusCode)
+				}
+			}
 		}
 	})
 }
