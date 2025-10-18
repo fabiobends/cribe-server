@@ -22,7 +22,7 @@ type Episode struct {
 	Description   string    `json:"description"`
 	AudioURL      string    `json:"audio_url"`
 	ImageURL      string    `json:"image_url"`
-	DatePublished int64     `json:"date_published"`
+	DatePublished string    `json:"date_published"`
 	Duration      int       `json:"duration"`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`

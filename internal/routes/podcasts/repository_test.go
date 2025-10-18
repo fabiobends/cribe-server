@@ -342,9 +342,10 @@ func TestGetEpisodesByPodcastID_Success(t *testing.T) {
 		WithOptions(WithEpisodeExecutor(episodeExecutor))
 
 	now := time.Now()
+	datePublished := "2009-02-13T23:31:30Z"
 	rows := pgxmock.NewRows([]string{"id", "external_id", "podcast_id", "name", "description", "audio_url", "image_url", "date_published", "duration", "created_at", "updated_at"}).
-		AddRow(1, "episode-uuid-1", 1, "Episode 1", "Description 1", "http://example.com/audio1.mp3", "http://example.com/image1.jpg", int64(1234567890), 3600, now, now).
-		AddRow(2, "episode-uuid-2", 1, "Episode 2", "Description 2", "http://example.com/audio2.mp3", "http://example.com/image2.jpg", int64(1234567891), 2400, now, now)
+		AddRow(1, "episode-uuid-1", 1, "Episode 1", "Description 1", "http://example.com/audio1.mp3", "http://example.com/image1.jpg", datePublished, 3600, now, now).
+		AddRow(2, "episode-uuid-2", 1, "Episode 2", "Description 2", "http://example.com/audio2.mp3", "http://example.com/image2.jpg", datePublished, 2400, now, now)
 
 	conn.ExpectQuery("SELECT \\* FROM episodes WHERE podcast_id = \\$1 ORDER BY date_published DESC").
 		WithArgs(1).
@@ -444,11 +445,12 @@ func TestUpsertEpisode_Insert(t *testing.T) {
 	}
 
 	now := time.Now()
+	datePublished := utils.UnixToISO(externalEpisode.DatePublished)
 	rows := pgxmock.NewRows([]string{"id", "external_id", "podcast_id", "name", "description", "audio_url", "image_url", "date_published", "duration", "created_at", "updated_at"}).
-		AddRow(1, externalEpisode.UUID, 1, externalEpisode.Name, externalEpisode.Description, externalEpisode.AudioURL, externalEpisode.AudioURL, externalEpisode.DatePublished, externalEpisode.Duration, now, now)
+		AddRow(1, externalEpisode.UUID, 1, externalEpisode.Name, externalEpisode.Description, externalEpisode.AudioURL, externalEpisode.AudioURL, datePublished, externalEpisode.Duration, now, now)
 
 	conn.ExpectQuery("INSERT INTO episodes").
-		WithArgs(externalEpisode.UUID, 1, externalEpisode.Name, externalEpisode.Description, externalEpisode.AudioURL, externalEpisode.AudioURL, externalEpisode.DatePublished, externalEpisode.Duration).
+		WithArgs(externalEpisode.UUID, 1, externalEpisode.Name, externalEpisode.Description, externalEpisode.AudioURL, externalEpisode.AudioURL, datePublished, externalEpisode.Duration).
 		WillReturnRows(rows)
 
 	episode, err := repo.UpsertEpisode(externalEpisode, 1)
@@ -505,11 +507,12 @@ func TestUpsertEpisode_Update(t *testing.T) {
 	}
 
 	now := time.Now()
+	datePublished := utils.UnixToISO(externalEpisode.DatePublished)
 	rows := pgxmock.NewRows([]string{"id", "external_id", "podcast_id", "name", "description", "audio_url", "image_url", "date_published", "duration", "created_at", "updated_at"}).
-		AddRow(1, externalEpisode.UUID, 1, externalEpisode.Name, externalEpisode.Description, externalEpisode.AudioURL, externalEpisode.AudioURL, externalEpisode.DatePublished, externalEpisode.Duration, now, now)
+		AddRow(1, externalEpisode.UUID, 1, externalEpisode.Name, externalEpisode.Description, externalEpisode.AudioURL, externalEpisode.AudioURL, datePublished, externalEpisode.Duration, now, now)
 
 	conn.ExpectQuery("INSERT INTO episodes").
-		WithArgs(externalEpisode.UUID, 1, externalEpisode.Name, externalEpisode.Description, externalEpisode.AudioURL, externalEpisode.AudioURL, externalEpisode.DatePublished, externalEpisode.Duration).
+		WithArgs(externalEpisode.UUID, 1, externalEpisode.Name, externalEpisode.Description, externalEpisode.AudioURL, externalEpisode.AudioURL, datePublished, externalEpisode.Duration).
 		WillReturnRows(rows)
 
 	episode, err := repo.UpsertEpisode(externalEpisode, 1)
@@ -561,8 +564,9 @@ func TestUpsertEpisode_Error(t *testing.T) {
 		Duration:      3600,
 	}
 
+	datePublished := utils.UnixToISO(externalEpisode.DatePublished)
 	conn.ExpectQuery("INSERT INTO episodes").
-		WithArgs(externalEpisode.UUID, 1, externalEpisode.Name, externalEpisode.Description, externalEpisode.AudioURL, externalEpisode.AudioURL, externalEpisode.DatePublished, externalEpisode.Duration).
+		WithArgs(externalEpisode.UUID, 1, externalEpisode.Name, externalEpisode.Description, externalEpisode.AudioURL, externalEpisode.AudioURL, datePublished, externalEpisode.Duration).
 		WillReturnError(fmt.Errorf("database error"))
 
 	episode, err := repo.UpsertEpisode(externalEpisode, 1)

@@ -210,7 +210,7 @@ func (r *PodcastRepository) UpsertEpisode(episode PodcastEpisode, podcastID int)
 		episode.Description,
 		episode.AudioURL,
 		episode.AudioURL, // Using audio URL as image URL fallback for now
-		episode.DatePublished,
+		utils.UnixToISO(episode.DatePublished),
 		episode.Duration,
 	)
 
