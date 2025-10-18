@@ -3,6 +3,7 @@ package podcasts
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -259,4 +260,311 @@ func TestGetTopPodcasts_NetworkError(t *testing.T) {
 	if len(podcasts) != 0 {
 		t.Errorf("Expected 0 podcasts on error, got %d", len(podcasts))
 	}
+}
+
+func TestGetPodcastByID_Success(t *testing.T) {
+	mockHTTPClient := &MockHTTPClient{
+		DoFunc: func(req *http.Request) (*http.Response, error) {
+			response := struct {
+				Data struct {
+					GetPodcastSeries PodcastWithEpisodes `json:"getPodcastSeries"`
+				} `json:"data"`
+			}{
+				Data: struct {
+					GetPodcastSeries PodcastWithEpisodes `json:"getPodcastSeries"`
+				}{
+					GetPodcastSeries: PodcastWithEpisodes{
+						UUID:        "uuid-1",
+						Name:        "Test Podcast",
+						AuthorName:  "Test Author",
+						ImageURL:    "http://example.com/image.jpg",
+						Description: "Test Description",
+						Episodes: []PodcastEpisode{
+							{UUID: "ep-1", Name: "Episode 1", AudioURL: "url", DatePublished: 123, Duration: 100},
+						},
+					},
+				},
+			}
+
+			responseBody, _ := json.Marshal(response)
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(bytes.NewBuffer(responseBody)),
+				Header:     make(http.Header),
+			}, nil
+		},
+	}
+
+	client := &PodcastAPIClient{
+		userID:     "test-user",
+		apiKey:     "test-key",
+		logger:     logger.NewServiceLogger("PodcastAPIClient"),
+		httpClient: mockHTTPClient,
+		baseURL:    "http://mock-api.com",
+	}
+
+	podcast, err := client.GetPodcastByID("uuid-1")
+
+	if err != nil || podcast.UUID != "uuid-1" || len(podcast.Episodes) != 1 {
+		t.Errorf("GetPodcastByID failed: err=%v, podcast=%v", err, podcast)
+	}
+}
+
+func TestGetEpisodeByID_Success(t *testing.T) {
+	mockHTTPClient := &MockHTTPClient{
+		DoFunc: func(req *http.Request) (*http.Response, error) {
+			response := struct {
+				Data struct {
+					GetPodcastEpisode PodcastEpisode `json:"getPodcastEpisode"`
+				} `json:"data"`
+			}{
+				Data: struct {
+					GetPodcastEpisode PodcastEpisode `json:"getPodcastEpisode"`
+				}{
+					GetPodcastEpisode: PodcastEpisode{
+						UUID:          "ep-1",
+						Name:          "Episode 1",
+						Description:   "Episode Description",
+						AudioURL:      "http://example.com/episode.mp3",
+						DatePublished: 1697673600,
+						Duration:      1800,
+					},
+				},
+			}
+
+			responseBody, _ := json.Marshal(response)
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(bytes.NewBuffer(responseBody)),
+				Header:     make(http.Header),
+			}, nil
+		},
+	}
+
+	client := &PodcastAPIClient{
+		userID:     "test-user",
+		apiKey:     "test-key",
+		logger:     logger.NewServiceLogger("PodcastAPIClient"),
+		httpClient: mockHTTPClient,
+		baseURL:    "http://mock-api.com",
+	}
+
+	episode, err := client.GetEpisodeByID("podcast-1", "ep-1")
+
+	if err != nil || episode.UUID != "ep-1" || episode.Name != "Episode 1" {
+		t.Errorf("GetEpisodeByID failed: err=%v, episode=%v", err, episode)
+	}
+}
+
+// Error tests for GetPodcastByID
+func TestGetPodcastByID_HTTPError(t *testing.T) {
+	mockHTTPClient := &MockHTTPClient{
+		DoFunc: func(req *http.Request) (*http.Response, error) {
+			return nil, fmt.Errorf("network error")
+		},
+	}
+
+	client := &PodcastAPIClient{
+		userID:     "test-user",
+		apiKey:     "test-key",
+		logger:     logger.NewServiceLogger("PodcastAPIClient"),
+		httpClient: mockHTTPClient,
+		baseURL:    "http://mock-api.com",
+	}
+
+	_, err := client.GetPodcastByID("uuid-1")
+	if err == nil {
+		t.Error("Expected error for HTTP failure, got nil")
+	}
+}
+
+func TestGetPodcastByID_ReadBodyError(t *testing.T) {
+	mockHTTPClient := &MockHTTPClient{
+		DoFunc: func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(&errorReader{}),
+				Header:     make(http.Header),
+			}, nil
+		},
+	}
+
+	client := &PodcastAPIClient{
+		userID:     "test-user",
+		apiKey:     "test-key",
+		logger:     logger.NewServiceLogger("PodcastAPIClient"),
+		httpClient: mockHTTPClient,
+		baseURL:    "http://mock-api.com",
+	}
+
+	_, err := client.GetPodcastByID("uuid-1")
+	if err == nil {
+		t.Error("Expected error for read body failure, got nil")
+	}
+}
+
+func TestGetPodcastByID_Non200Status(t *testing.T) {
+	mockHTTPClient := &MockHTTPClient{
+		DoFunc: func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusBadRequest,
+				Body:       io.NopCloser(bytes.NewBufferString("Bad Request")),
+				Header:     make(http.Header),
+			}, nil
+		},
+	}
+
+	client := &PodcastAPIClient{
+		userID:     "test-user",
+		apiKey:     "test-key",
+		logger:     logger.NewServiceLogger("PodcastAPIClient"),
+		httpClient: mockHTTPClient,
+		baseURL:    "http://mock-api.com",
+	}
+
+	_, err := client.GetPodcastByID("uuid-1")
+	if err == nil {
+		t.Error("Expected error for non-200 status, got nil")
+	}
+}
+
+func TestGetPodcastByID_InvalidJSON(t *testing.T) {
+	mockHTTPClient := &MockHTTPClient{
+		DoFunc: func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(bytes.NewBufferString("invalid json")),
+				Header:     make(http.Header),
+			}, nil
+		},
+	}
+
+	client := &PodcastAPIClient{
+		userID:     "test-user",
+		apiKey:     "test-key",
+		logger:     logger.NewServiceLogger("PodcastAPIClient"),
+		httpClient: mockHTTPClient,
+		baseURL:    "http://mock-api.com",
+	}
+
+	_, err := client.GetPodcastByID("uuid-1")
+	if err == nil {
+		t.Error("Expected error for invalid JSON, got nil")
+	}
+}
+
+func TestGetPodcastByID_GraphQLErrors(t *testing.T) {
+	mockHTTPClient := &MockHTTPClient{
+		DoFunc: func(req *http.Request) (*http.Response, error) {
+			response := struct {
+				Errors []map[string]interface{} `json:"errors"`
+			}{
+				Errors: []map[string]interface{}{{"message": "GraphQL error"}},
+			}
+			responseBody, _ := json.Marshal(response)
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(bytes.NewBuffer(responseBody)),
+				Header:     make(http.Header),
+			}, nil
+		},
+	}
+
+	client := &PodcastAPIClient{
+		userID:     "test-user",
+		apiKey:     "test-key",
+		logger:     logger.NewServiceLogger("PodcastAPIClient"),
+		httpClient: mockHTTPClient,
+		baseURL:    "http://mock-api.com",
+	}
+
+	_, err := client.GetPodcastByID("uuid-1")
+	if err == nil {
+		t.Error("Expected error for GraphQL errors, got nil")
+	}
+}
+
+// Error tests for GetEpisodeByID
+func TestGetEpisodeByID_HTTPError(t *testing.T) {
+	mockHTTPClient := &MockHTTPClient{
+		DoFunc: func(req *http.Request) (*http.Response, error) {
+			return nil, fmt.Errorf("network error")
+		},
+	}
+
+	client := &PodcastAPIClient{
+		userID:     "test-user",
+		apiKey:     "test-key",
+		logger:     logger.NewServiceLogger("PodcastAPIClient"),
+		httpClient: mockHTTPClient,
+		baseURL:    "http://mock-api.com",
+	}
+
+	_, err := client.GetEpisodeByID("podcast-1", "ep-1")
+	if err == nil {
+		t.Error("Expected error for HTTP failure, got nil")
+	}
+}
+
+func TestGetEpisodeByID_Non200Status(t *testing.T) {
+	mockHTTPClient := &MockHTTPClient{
+		DoFunc: func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusInternalServerError,
+				Body:       io.NopCloser(bytes.NewBufferString("Server Error")),
+				Header:     make(http.Header),
+			}, nil
+		},
+	}
+
+	client := &PodcastAPIClient{
+		userID:     "test-user",
+		apiKey:     "test-key",
+		logger:     logger.NewServiceLogger("PodcastAPIClient"),
+		httpClient: mockHTTPClient,
+		baseURL:    "http://mock-api.com",
+	}
+
+	_, err := client.GetEpisodeByID("podcast-1", "ep-1")
+	if err == nil {
+		t.Error("Expected error for non-200 status, got nil")
+	}
+}
+
+func TestGetEpisodeByID_GraphQLErrors(t *testing.T) {
+	mockHTTPClient := &MockHTTPClient{
+		DoFunc: func(req *http.Request) (*http.Response, error) {
+			response := struct {
+				Errors []map[string]interface{} `json:"errors"`
+			}{
+				Errors: []map[string]interface{}{{"message": "Episode not found"}},
+			}
+			responseBody, _ := json.Marshal(response)
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(bytes.NewBuffer(responseBody)),
+				Header:     make(http.Header),
+			}, nil
+		},
+	}
+
+	client := &PodcastAPIClient{
+		userID:     "test-user",
+		apiKey:     "test-key",
+		logger:     logger.NewServiceLogger("PodcastAPIClient"),
+		httpClient: mockHTTPClient,
+		baseURL:    "http://mock-api.com",
+	}
+
+	_, err := client.GetEpisodeByID("podcast-1", "ep-1")
+	if err == nil {
+		t.Error("Expected error for GraphQL errors, got nil")
+	}
+}
+
+// errorReader is a helper type that always returns an error when read
+type errorReader struct{}
+
+func (e *errorReader) Read(p []byte) (n int, err error) {
+	return 0, fmt.Errorf("read error")
 }
