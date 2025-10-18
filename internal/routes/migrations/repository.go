@@ -21,11 +21,12 @@ func WithQueryExecutor(executor QueryExecutor) Option {
 	}
 }
 
+var defaultRepo = utils.NewRepository[Migration]()
+
 func defaultExecutor() QueryExecutor {
-	db := utils.NewDatabase[Migration](nil)
 	return QueryExecutor{
-		QueryItem: db.QueryItem,
-		Exec:      db.Exec,
+		QueryItem: defaultRepo.Executor.QueryItem,
+		Exec:      defaultRepo.Executor.Exec,
 	}
 }
 

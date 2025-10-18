@@ -8,7 +8,8 @@ import (
 )
 
 var privateRoutes = map[string]bool{
-	"/users": true,
+	"/users":    true,
+	"/podcasts": true,
 }
 
 func isPrivateRoute(path string) bool {

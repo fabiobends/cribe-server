@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -23,8 +22,7 @@ func TestNotFound(t *testing.T) {
 	}
 
 	// Check response body contains expected error
-	var response errors.ErrorResponse
-	err := json.Unmarshal(w.Body.Bytes(), &response)
+	response, err := DecodeResponse[errors.ErrorResponse](w.Body.String())
 	if err != nil {
 		t.Fatalf("Failed to unmarshal response: %v", err)
 	}
@@ -53,8 +51,7 @@ func TestNotFound_DifferentMethods(t *testing.T) {
 				t.Errorf("Expected status code %d for method %s, got %d", http.StatusNotFound, method, w.Code)
 			}
 
-			var response errors.ErrorResponse
-			err := json.Unmarshal(w.Body.Bytes(), &response)
+			response, err := DecodeResponse[errors.ErrorResponse](w.Body.String())
 			if err != nil {
 				t.Fatalf("Failed to unmarshal response for method %s: %v", method, err)
 			}
@@ -85,8 +82,7 @@ func TestNotFound_DifferentPaths(t *testing.T) {
 				t.Errorf("Expected status code %d for path %s, got %d", http.StatusNotFound, path, w.Code)
 			}
 
-			var response errors.ErrorResponse
-			err := json.Unmarshal(w.Body.Bytes(), &response)
+			response, err := DecodeResponse[errors.ErrorResponse](w.Body.String())
 			if err != nil {
 				t.Fatalf("Failed to unmarshal response for path %s: %v", path, err)
 			}
@@ -111,8 +107,7 @@ func TestNotAllowed(t *testing.T) {
 	}
 
 	// Check response body contains expected error
-	var response errors.ErrorResponse
-	err := json.Unmarshal(w.Body.Bytes(), &response)
+	response, err := DecodeResponse[errors.ErrorResponse](w.Body.String())
 	if err != nil {
 		t.Fatalf("Failed to unmarshal response: %v", err)
 	}
@@ -137,8 +132,7 @@ func TestNotAllowed_MultipleCall(t *testing.T) {
 				t.Errorf("Call %d: Expected status code %d, got %d", i+1, http.StatusMethodNotAllowed, w.Code)
 			}
 
-			var response errors.ErrorResponse
-			err := json.Unmarshal(w.Body.Bytes(), &response)
+			response, err := DecodeResponse[errors.ErrorResponse](w.Body.String())
 			if err != nil {
 				t.Fatalf("Call %d: Failed to unmarshal response: %v", i+1, err)
 			}
@@ -164,8 +158,7 @@ func TestNotFound_ResponseFormat(t *testing.T) {
 	}
 
 	// Verify response is valid JSON
-	var response map[string]interface{}
-	err := json.Unmarshal(w.Body.Bytes(), &response)
+	response, err := DecodeResponse[map[string]interface{}](w.Body.String())
 	if err != nil {
 		t.Fatalf("Response is not valid JSON: %v", err)
 	}
@@ -187,8 +180,7 @@ func TestNotAllowed_ResponseFormat(t *testing.T) {
 	NotAllowed(w)
 
 	// Verify response is valid JSON
-	var response map[string]interface{}
-	err := json.Unmarshal(w.Body.Bytes(), &response)
+	response, err := DecodeResponse[map[string]interface{}](w.Body.String())
 	if err != nil {
 		t.Fatalf("Response is not valid JSON: %v", err)
 	}

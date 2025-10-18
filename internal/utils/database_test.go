@@ -21,8 +21,6 @@ func TestQueryItem_SyntaxError(t *testing.T) {
 
 	// Expect the query to fail with syntax error
 	conn.ExpectQuery("SELEC").WillReturnError(fmt.Errorf("syntax error"))
-	// Expect close to be called
-	conn.ExpectClose()
 
 	// Force SQL error → triggers `log.Error` branch
 	_, err := db.QueryItem("SELEC * FROM test_items")
@@ -42,7 +40,6 @@ func TestQueryItemAndQueryList(t *testing.T) {
 
 	// Set up expectations for Insert
 	conn.ExpectExec("INSERT INTO test_items").WithArgs("Alice", "Bob").WillReturnResult(pgxmock.NewResult("INSERT", 2))
-	conn.ExpectClose()
 
 	// Insert test data
 	err := db.Exec("INSERT INTO test_items (name) VALUES ($1), ($2)", "Alice", "Bob")
@@ -61,7 +58,6 @@ func TestQueryItemAndQueryList(t *testing.T) {
 
 	rows := pgxmock.NewRows([]string{"id", "name"}).AddRow(1, "Alice")
 	conn2.ExpectQuery("SELECT id, name FROM test_items WHERE name").WithArgs("Alice").WillReturnRows(rows)
-	conn2.ExpectClose()
 
 	item, err := db2.QueryItem("SELECT id, name FROM test_items WHERE name = $1", "Alice")
 	if err != nil {
@@ -81,7 +77,6 @@ func TestQueryItemAndQueryList(t *testing.T) {
 	db3 := NewDatabase[TestItem](conn3)
 
 	conn3.ExpectQuery("SELECT id, name FROM test_items WHERE name").WithArgs("Charlie").WillReturnError(fmt.Errorf("no rows in result set"))
-	conn3.ExpectClose()
 
 	_, err = db3.QueryItem("SELECT id, name FROM test_items WHERE name = $1", "Charlie")
 	if err == nil {
@@ -99,7 +94,6 @@ func TestQueryItemAndQueryList(t *testing.T) {
 
 	rows2 := pgxmock.NewRows([]string{"id", "name"}).AddRow(1, "Alice").AddRow(2, "Bob")
 	conn4.ExpectQuery("SELECT id, name FROM test_items ORDER BY id").WillReturnRows(rows2)
-	conn4.ExpectClose()
 
 	items, err := db4.QueryList("SELECT id, name FROM test_items ORDER BY id")
 	if err != nil {
@@ -121,8 +115,6 @@ func TestQueryList_SyntaxError(t *testing.T) {
 
 	// Expect the query to fail with syntax error
 	conn.ExpectQuery("SELEC").WillReturnError(fmt.Errorf("syntax error"))
-	// Expect close to be called
-	conn.ExpectClose()
 
 	// Force SQL error → triggers `log.Error` branch
 	result, err := db.QueryList("SELEC * FROM test_items")
@@ -146,7 +138,6 @@ func TestQueryList_RowMappingError(t *testing.T) {
 
 	// Set up expectations for Insert
 	conn.ExpectExec("INSERT INTO test_items").WithArgs("Alice").WillReturnResult(pgxmock.NewResult("INSERT", 1))
-	conn.ExpectClose()
 
 	// Insert one row
 	err := db.Exec("INSERT INTO test_items (name) VALUES ($1)", "Alice")
@@ -166,7 +157,6 @@ func TestQueryList_RowMappingError(t *testing.T) {
 	// Return rows with wrong column name that won't map to struct
 	rows := pgxmock.NewRows([]string{"wrong_column"}).AddRow(1)
 	conn2.ExpectQuery("SELECT id AS wrong_column FROM test_items").WillReturnRows(rows)
-	conn2.ExpectClose()
 
 	// Query column that doesn't match struct → CollectRows should fail
 	_, err = db2.QueryList("SELECT id AS wrong_column FROM test_items")
@@ -186,7 +176,6 @@ func TestQueryItem_RowMappingError(t *testing.T) {
 
 	// Set up expectations for Insert
 	conn.ExpectExec("INSERT INTO test_items").WithArgs("Alice").WillReturnResult(pgxmock.NewResult("INSERT", 1))
-	conn.ExpectClose()
 
 	err := db.Exec("INSERT INTO test_items (name) VALUES ($1)", "Alice")
 	if err != nil {
@@ -205,7 +194,6 @@ func TestQueryItem_RowMappingError(t *testing.T) {
 	// Return rows with wrong column name that won't map to struct
 	rows := pgxmock.NewRows([]string{"wrong_column"}).AddRow(1)
 	conn2.ExpectQuery("SELECT id AS wrong_column FROM test_items WHERE name").WithArgs("Alice").WillReturnRows(rows)
-	conn2.ExpectClose()
 
 	// Query column that doesn't match struct → CollectExactlyOneRow should fail
 	_, err = db2.QueryItem("SELECT id AS wrong_column FROM test_items WHERE name = $1", "Alice")
@@ -225,7 +213,6 @@ func TestQueryItem_TableNotFoundError(t *testing.T) {
 
 	// Expect query to fail - table doesn't exist
 	conn.ExpectQuery("SELECT \\* FROM table_that_does_not_exist").WillReturnError(fmt.Errorf("relation \"table_that_does_not_exist\" does not exist"))
-	conn.ExpectClose()
 
 	// Table doesn't exist → query itself will fail
 	_, err := db.QueryItem("SELECT * FROM table_that_does_not_exist")
@@ -246,7 +233,6 @@ func TestExec_SuccessAndError(t *testing.T) {
 
 	// Set up expectations for successful Insert
 	conn.ExpectExec("INSERT INTO test_items").WithArgs("Charlie").WillReturnResult(pgxmock.NewResult("INSERT", 1))
-	conn.ExpectClose()
 
 	err := db.Exec("INSERT INTO test_items (name) VALUES ($1)", "Charlie")
 	if err != nil {
@@ -264,7 +250,6 @@ func TestExec_SuccessAndError(t *testing.T) {
 
 	// Set up expectations for failed Insert (syntax error)
 	conn2.ExpectExec("INSER INTO test_items").WithArgs("BadSQL").WillReturnError(fmt.Errorf("syntax error at or near \"INSER\""))
-	conn2.ExpectClose()
 
 	// Force SQL error → triggers `log.Error` branch
 	err = db2.Exec("INSER INTO test_items (name) VALUES ($1)", "BadSQL") // typo "INSERT"
