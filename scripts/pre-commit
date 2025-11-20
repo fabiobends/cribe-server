@@ -11,6 +11,21 @@ if [ -z "$STAGED_FILES" ]; then
     exit 0
 fi
 
+echo "Checking file sizes avoiding bloated files..."
+EXCEEDED_FILES=""
+for file in $STAGED_FILES; do
+    LINE_COUNT=$(wc -l < "$file" | tr -d ' ')
+    if [ "$LINE_COUNT" -gt 500 ]; then
+        echo "Warning: $file has $LINE_COUNT lines (exceeds 500 line limit)"
+        EXCEEDED_FILES="${EXCEEDED_FILES}${file}\n"
+    fi
+done
+
+if [ -n "$EXCEEDED_FILES" ]; then
+    echo "Error: Some files exceed the 500 line limit. Please refactor before committing."
+    exit 1
+fi
+
 echo "Formatting and linting Go files..."
 
 # Format all staged files
