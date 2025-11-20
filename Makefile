@@ -112,10 +112,8 @@ migrate-down:  ## Rollback last migration
 # ---------------------------
 setup-hooks:  ## Install Git hooks
 	@echo "Setting up Git hooks..."
-	@mkdir -p .git/hooks
-	@cp scripts/pre-commit .git/hooks/pre-commit
-	@cp scripts/pre-push .git/hooks/pre-push
-	@chmod +x .git/hooks/pre-commit .git/hooks/pre-push
+	@git config core.hooksPath scripts
+	@chmod +x scripts/pre-commit scripts/pre-push
 	@echo "Git hooks installed successfully!"
 
 # ---------------------------
