@@ -44,19 +44,19 @@ func (s *MigrationService) fetchMigrations() []Migration {
 
 	files, err := s.filesReader()
 	if err != nil {
-		s.logger.Error("Unable to read migrations directory", map[string]interface{}{
+		s.logger.Error("Unable to read migrations directory", map[string]any{
 			"error": err.Error(),
 		})
 		return nil
 	}
 
-	s.logger.Debug("Migration files loaded", map[string]interface{}{
+	s.logger.Debug("Migration files loaded", map[string]any{
 		"filesCount": len(files),
 	})
 
 	lastExecutedMigration, err := s.repo.GetLastMigration()
 	if err != nil {
-		s.logger.Warn("Could not get last executed migration", map[string]interface{}{
+		s.logger.Warn("Could not get last executed migration", map[string]any{
 			"error": err.Error(),
 		})
 	}
@@ -72,7 +72,7 @@ func (s *MigrationService) fetchMigrations() []Migration {
 
 		name := strings.TrimSuffix(file.Name(), ".up.sql")
 		if name == lastExecutedMigration.Name {
-			s.logger.Debug("Found last executed migration", map[string]interface{}{
+			s.logger.Debug("Found last executed migration", map[string]any{
 				"migrationName": name,
 			})
 			break
@@ -82,7 +82,7 @@ func (s *MigrationService) fetchMigrations() []Migration {
 		lastUpIndex--
 	}
 
-	s.logger.Info("Pending migrations identified", map[string]interface{}{
+	s.logger.Info("Pending migrations identified", map[string]any{
 		"pendingCount": len(migrations),
 	})
 
@@ -94,7 +94,7 @@ func (s *MigrationService) execMigrationsUp() []Migration {
 
 	m, err := s.migrationsManager()
 	if err != nil {
-		s.logger.Error("Unable to create migration instance", map[string]interface{}{
+		s.logger.Error("Unable to create migration instance", map[string]any{
 			"error": err.Error(),
 		})
 		return []Migration{}
@@ -103,7 +103,7 @@ func (s *MigrationService) execMigrationsUp() []Migration {
 	// Force the migration to run
 	err = m.Up()
 	if err != nil && err != migrate.ErrNoChange {
-		s.logger.Error("Unable to migrate up", map[string]interface{}{
+		s.logger.Error("Unable to migrate up", map[string]any{
 			"error": err.Error(),
 		})
 		return []Migration{}
@@ -125,17 +125,17 @@ func (s *MigrationService) execMigrationsUp() []Migration {
 	topMigration := migrations[0]
 	err = s.repo.SaveMigration(topMigration.Name)
 	if err != nil {
-		s.logger.Error("Couldn't update migrations table", map[string]interface{}{
+		s.logger.Error("Couldn't update migrations table", map[string]any{
 			"migrationName": topMigration.Name,
 			"error":         err.Error(),
 		})
 	} else {
-		s.logger.Info("Migration tracking updated", map[string]interface{}{
+		s.logger.Info("Migration tracking updated", map[string]any{
 			"migrationName": topMigration.Name,
 		})
 	}
 
-	s.logger.Info("Migrations executed successfully", map[string]interface{}{
+	s.logger.Info("Migrations executed successfully", map[string]any{
 		"appliedCount": len(migrations),
 	})
 

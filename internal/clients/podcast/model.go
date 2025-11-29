@@ -22,14 +22,14 @@ type HTTPClient interface {
 
 // GraphQLRequest represents a GraphQL request
 type GraphQLRequest struct {
-	Query     string                 `json:"query"`
-	Variables map[string]interface{} `json:"variables,omitempty"`
+	Query     string         `json:"query"`
+	Variables map[string]any `json:"variables,omitempty"`
 }
 
 // GraphQLResponse represents a GraphQL response
 type GraphQLResponse struct {
-	Data   GraphQLData              `json:"data"`
-	Errors []map[string]interface{} `json:"errors,omitempty"`
+	Data   GraphQLData      `json:"data"`
+	Errors []map[string]any `json:"errors,omitempty"`
 }
 
 // GraphQLData contains the data from a GraphQL response

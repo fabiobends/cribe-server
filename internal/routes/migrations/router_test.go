@@ -26,7 +26,7 @@ func TestMigrations_IntegrationTests(t *testing.T) {
 	}
 
 	pendingMigrationsCount := len(resp.Body)
-	log.Info("GET /migrations result", map[string]interface{}{
+	log.Info("GET /migrations result", map[string]any{
 		"pendingCount": pendingMigrationsCount,
 	})
 
@@ -37,7 +37,7 @@ func TestMigrations_IntegrationTests(t *testing.T) {
 		HandlerFunc: HandleHTTPRequests,
 	})
 
-	log.Info("POST /migrations result", map[string]interface{}{
+	log.Info("POST /migrations result", map[string]any{
 		"statusCode":      postResp.StatusCode,
 		"migrationsCount": len(postResp.Body),
 	})
@@ -69,7 +69,7 @@ func TestMigrations_IntegrationTests(t *testing.T) {
 		t.Errorf("Expected status code %d for final GET, got %d", http.StatusOK, finalResp.StatusCode)
 	}
 
-	log.Info("Final GET /migrations result", map[string]interface{}{
+	log.Info("Final GET /migrations result", map[string]any{
 		"pendingCount": len(finalResp.Body),
 	})
 }

@@ -19,7 +19,7 @@ func NewUserRepository(options ...utils.Option[UserWithPassword]) *UserRepositor
 }
 
 func (r *UserRepository) CreateUser(user UserDTO) (UserWithPassword, error) {
-	r.logger.Debug("Creating user in database", map[string]interface{}{
+	r.logger.Debug("Creating user in database", map[string]any{
 		"email": user.Email, // Will be automatically masked
 	})
 
@@ -31,14 +31,14 @@ func (r *UserRepository) CreateUser(user UserDTO) (UserWithPassword, error) {
 
 	result, err := r.Executor.QueryItem(query, user.FirstName, user.LastName, user.Email, user.Password)
 	if err != nil {
-		r.logger.Error("Failed to create user", map[string]interface{}{
+		r.logger.Error("Failed to create user", map[string]any{
 			"email": user.Email, // Will be automatically masked
 			"error": err.Error(),
 		})
 		return result, err
 	}
 
-	r.logger.Info("User created successfully", map[string]interface{}{
+	r.logger.Info("User created successfully", map[string]any{
 		"userID": result.ID,
 		"email":  user.Email, // Will be automatically masked
 	})
@@ -47,7 +47,7 @@ func (r *UserRepository) CreateUser(user UserDTO) (UserWithPassword, error) {
 }
 
 func (r *UserRepository) GetUserById(id int) (UserWithPassword, error) {
-	r.logger.Debug("Fetching user by ID", map[string]interface{}{
+	r.logger.Debug("Fetching user by ID", map[string]any{
 		"userID": id,
 	})
 
@@ -55,14 +55,14 @@ func (r *UserRepository) GetUserById(id int) (UserWithPassword, error) {
 
 	result, err := r.Executor.QueryItem(query, id)
 	if err != nil {
-		r.logger.Error("Failed to fetch user by ID", map[string]interface{}{
+		r.logger.Error("Failed to fetch user by ID", map[string]any{
 			"userID": id,
 			"error":  err.Error(),
 		})
 		return result, err
 	}
 
-	r.logger.Debug("User found by ID", map[string]interface{}{
+	r.logger.Debug("User found by ID", map[string]any{
 		"userID": id,
 	})
 
@@ -70,7 +70,7 @@ func (r *UserRepository) GetUserById(id int) (UserWithPassword, error) {
 }
 
 func (r *UserRepository) GetUserByEmail(email string) (UserWithPassword, error) {
-	r.logger.Debug("Fetching user by email", map[string]interface{}{
+	r.logger.Debug("Fetching user by email", map[string]any{
 		"email": email, // Will be automatically masked
 	})
 
@@ -78,14 +78,14 @@ func (r *UserRepository) GetUserByEmail(email string) (UserWithPassword, error) 
 
 	result, err := r.Executor.QueryItem(query, email)
 	if err != nil {
-		r.logger.Error("Failed to fetch user by email", map[string]interface{}{
+		r.logger.Error("Failed to fetch user by email", map[string]any{
 			"email": email, // Will be automatically masked
 			"error": err.Error(),
 		})
 		return result, err
 	}
 
-	r.logger.Debug("User found by email", map[string]interface{}{
+	r.logger.Debug("User found by email", map[string]any{
 		"userID": result.ID,
 		"email":  email, // Will be automatically masked
 	})

@@ -53,13 +53,13 @@ func (r *PodcastRepository) GetPodcasts() ([]Podcast, error) {
 
 	result, err := r.Executor.QueryList(query)
 	if err != nil {
-		r.logger.Error("Failed to fetch podcasts", map[string]interface{}{
+		r.logger.Error("Failed to fetch podcasts", map[string]any{
 			"error": err.Error(),
 		})
 		return result, err
 	}
 
-	r.logger.Debug("Podcasts fetched successfully", map[string]interface{}{
+	r.logger.Debug("Podcasts fetched successfully", map[string]any{
 		"count": len(result),
 	})
 
@@ -67,7 +67,7 @@ func (r *PodcastRepository) GetPodcasts() ([]Podcast, error) {
 }
 
 func (r *PodcastRepository) GetPodcastByExternalID(externalID string) (Podcast, error) {
-	r.logger.Debug("Fetching podcast by external ID", map[string]interface{}{
+	r.logger.Debug("Fetching podcast by external ID", map[string]any{
 		"externalID": externalID,
 	})
 
@@ -75,14 +75,14 @@ func (r *PodcastRepository) GetPodcastByExternalID(externalID string) (Podcast, 
 
 	result, err := r.Executor.QueryItem(query, externalID)
 	if err != nil {
-		r.logger.Error("Failed to fetch podcast by external ID", map[string]interface{}{
+		r.logger.Error("Failed to fetch podcast by external ID", map[string]any{
 			"externalID": externalID,
 			"error":      err.Error(),
 		})
 		return result, err
 	}
 
-	r.logger.Debug("Podcast found by external ID", map[string]interface{}{
+	r.logger.Debug("Podcast found by external ID", map[string]any{
 		"externalID": externalID,
 		"podcastID":  result.ID,
 	})
@@ -91,7 +91,7 @@ func (r *PodcastRepository) GetPodcastByExternalID(externalID string) (Podcast, 
 }
 
 func (r *PodcastRepository) GetPodcastByID(id int) (Podcast, error) {
-	r.logger.Debug("Fetching podcast by ID", map[string]interface{}{
+	r.logger.Debug("Fetching podcast by ID", map[string]any{
 		"id": id,
 	})
 
@@ -99,14 +99,14 @@ func (r *PodcastRepository) GetPodcastByID(id int) (Podcast, error) {
 
 	result, err := r.Executor.QueryItem(query, id)
 	if err != nil {
-		r.logger.Error("Failed to fetch podcast by ID", map[string]interface{}{
+		r.logger.Error("Failed to fetch podcast by ID", map[string]any{
 			"id":    id,
 			"error": err.Error(),
 		})
 		return result, err
 	}
 
-	r.logger.Debug("Podcast found by ID", map[string]interface{}{
+	r.logger.Debug("Podcast found by ID", map[string]any{
 		"id": id,
 	})
 
@@ -114,7 +114,7 @@ func (r *PodcastRepository) GetPodcastByID(id int) (Podcast, error) {
 }
 
 func (r *PodcastRepository) UpsertPodcast(podcast ExternalPodcast) (Podcast, error) {
-	r.logger.Debug("Upserting podcast", map[string]interface{}{
+	r.logger.Debug("Upserting podcast", map[string]any{
 		"externalID": podcast.UUID,
 		"name":       podcast.Name,
 	})
@@ -142,14 +142,14 @@ func (r *PodcastRepository) UpsertPodcast(podcast ExternalPodcast) (Podcast, err
 	)
 
 	if err != nil {
-		r.logger.Error("Failed to upsert podcast", map[string]interface{}{
+		r.logger.Error("Failed to upsert podcast", map[string]any{
 			"externalID": podcast.UUID,
 			"error":      err.Error(),
 		})
 		return result, err
 	}
 
-	r.logger.Info("Podcast upserted successfully", map[string]interface{}{
+	r.logger.Info("Podcast upserted successfully", map[string]any{
 		"podcastID":  result.ID,
 		"externalID": podcast.UUID,
 	})
@@ -158,7 +158,7 @@ func (r *PodcastRepository) UpsertPodcast(podcast ExternalPodcast) (Podcast, err
 }
 
 func (r *PodcastRepository) GetEpisodesByPodcastID(podcastID int) ([]Episode, error) {
-	r.logger.Debug("Fetching episodes by podcast ID", map[string]interface{}{
+	r.logger.Debug("Fetching episodes by podcast ID", map[string]any{
 		"podcastID": podcastID,
 	})
 
@@ -166,14 +166,14 @@ func (r *PodcastRepository) GetEpisodesByPodcastID(podcastID int) ([]Episode, er
 
 	result, err := r.episodeExecutor.QueryList(query, podcastID)
 	if err != nil {
-		r.logger.Error("Failed to fetch episodes", map[string]interface{}{
+		r.logger.Error("Failed to fetch episodes", map[string]any{
 			"podcastID": podcastID,
 			"error":     err.Error(),
 		})
 		return result, err
 	}
 
-	r.logger.Debug("Episodes fetched successfully", map[string]interface{}{
+	r.logger.Debug("Episodes fetched successfully", map[string]any{
 		"podcastID": podcastID,
 		"count":     len(result),
 	})
@@ -182,7 +182,7 @@ func (r *PodcastRepository) GetEpisodesByPodcastID(podcastID int) ([]Episode, er
 }
 
 func (r *PodcastRepository) UpsertEpisode(episode podcast.PodcastEpisode, podcastID int) (Episode, error) {
-	r.logger.Debug("Upserting episode", map[string]interface{}{
+	r.logger.Debug("Upserting episode", map[string]any{
 		"externalID": episode.UUID,
 		"podcastID":  podcastID,
 		"name":       episode.Name,
@@ -216,7 +216,7 @@ func (r *PodcastRepository) UpsertEpisode(episode podcast.PodcastEpisode, podcas
 	)
 
 	if err != nil {
-		r.logger.Error("Failed to upsert episode", map[string]interface{}{
+		r.logger.Error("Failed to upsert episode", map[string]any{
 			"externalID": episode.UUID,
 			"podcastID":  podcastID,
 			"error":      err.Error(),
@@ -224,7 +224,7 @@ func (r *PodcastRepository) UpsertEpisode(episode podcast.PodcastEpisode, podcas
 		return result, err
 	}
 
-	r.logger.Info("Episode upserted successfully", map[string]interface{}{
+	r.logger.Info("Episode upserted successfully", map[string]any{
 		"episodeID":  result.ID,
 		"externalID": episode.UUID,
 		"podcastID":  podcastID,

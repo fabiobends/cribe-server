@@ -50,7 +50,7 @@ func TestEntityType_Constants(t *testing.T) {
 }
 
 func TestLogContext_Creation(t *testing.T) {
-	extra := map[string]interface{}{
+	extra := map[string]any{
 		"userId": 123,
 		"action": "test",
 	}

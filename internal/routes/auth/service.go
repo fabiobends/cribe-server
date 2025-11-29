@@ -23,13 +23,13 @@ func NewAuthService(userRepo *users.UserRepository, tokenService TokenService) *
 }
 
 func (s *AuthService) Register(data users.UserDTO) (*RegisterResponse, *errors.ErrorResponse) {
-	s.logger.Debug("Starting user registration process", map[string]interface{}{
+	s.logger.Debug("Starting user registration process", map[string]any{
 		"email": data.Email, // Will be automatically masked
 	})
 
 	hashedPassword, err := s.tokenService.GenerateHash(data.Password)
 	if err != nil {
-		s.logger.Error("Failed to hash password", map[string]interface{}{
+		s.logger.Error("Failed to hash password", map[string]any{
 			"error": err.Error(),
 		})
 		return nil, &errors.ErrorResponse{
@@ -46,7 +46,7 @@ func (s *AuthService) Register(data users.UserDTO) (*RegisterResponse, *errors.E
 		Password:  string(hashedPassword),
 	})
 	if err != nil {
-		s.logger.Error("Failed to create user in database", map[string]interface{}{
+		s.logger.Error("Failed to create user in database", map[string]any{
 			"error": err.Error(),
 			"email": data.Email, // Will be automatically masked
 		})
@@ -65,7 +65,7 @@ func (s *AuthService) Register(data users.UserDTO) (*RegisterResponse, *errors.E
 		}
 	}
 
-	s.logger.Info("User registration completed successfully", map[string]interface{}{
+	s.logger.Info("User registration completed successfully", map[string]any{
 		"userID": user.ID,
 		"email":  data.Email, // Will be automatically masked
 	})
@@ -73,13 +73,13 @@ func (s *AuthService) Register(data users.UserDTO) (*RegisterResponse, *errors.E
 }
 
 func (s *AuthService) Login(data LoginRequest) (*LoginResponse, *errors.ErrorResponse) {
-	s.logger.Debug("Starting login process", map[string]interface{}{
+	s.logger.Debug("Starting login process", map[string]any{
 		"email": data.Email, // Will be automatically masked
 	})
 
 	user, err := s.userRepo.GetUserByEmail(data.Email)
 	if err != nil {
-		s.logger.Warn("Login failed: user not found", map[string]interface{}{
+		s.logger.Warn("Login failed: user not found", map[string]any{
 			"email": data.Email, // Will be automatically masked
 			"error": err.Error(),
 		})
@@ -89,13 +89,13 @@ func (s *AuthService) Login(data LoginRequest) (*LoginResponse, *errors.ErrorRes
 		}
 	}
 
-	s.logger.Debug("Verifying password for user", map[string]interface{}{
+	s.logger.Debug("Verifying password for user", map[string]any{
 		"userID": user.ID,
 	})
 
 	err = s.tokenService.CompareHashAndPassword(user.Password, data.Password)
 	if err != nil {
-		s.logger.Warn("Login failed: invalid password", map[string]interface{}{
+		s.logger.Warn("Login failed: invalid password", map[string]any{
 			"userID": user.ID,
 			"email":  data.Email, // Will be automatically masked
 		})
@@ -105,13 +105,13 @@ func (s *AuthService) Login(data LoginRequest) (*LoginResponse, *errors.ErrorRes
 		}
 	}
 
-	s.logger.Debug("Generating access token", map[string]interface{}{
+	s.logger.Debug("Generating access token", map[string]any{
 		"userID": user.ID,
 	})
 
 	accessToken, err := s.tokenService.GetAccessToken(user.ID)
 	if err != nil {
-		s.logger.Error("Failed to generate access token", map[string]interface{}{
+		s.logger.Error("Failed to generate access token", map[string]any{
 			"userID": user.ID,
 			"error":  err.Error(),
 		})
@@ -121,13 +121,13 @@ func (s *AuthService) Login(data LoginRequest) (*LoginResponse, *errors.ErrorRes
 		}
 	}
 
-	s.logger.Debug("Generating refresh token", map[string]interface{}{
+	s.logger.Debug("Generating refresh token", map[string]any{
 		"userID": user.ID,
 	})
 
 	refreshToken, err := s.tokenService.GetRefreshToken(user.ID)
 	if err != nil {
-		s.logger.Error("Failed to generate refresh token", map[string]interface{}{
+		s.logger.Error("Failed to generate refresh token", map[string]any{
 			"userID": user.ID,
 			"error":  err.Error(),
 		})
@@ -137,7 +137,7 @@ func (s *AuthService) Login(data LoginRequest) (*LoginResponse, *errors.ErrorRes
 		}
 	}
 
-	s.logger.Info("Login completed successfully", map[string]interface{}{
+	s.logger.Info("Login completed successfully", map[string]any{
 		"userID": user.ID,
 		"email":  data.Email, // Will be automatically masked
 	})
@@ -153,7 +153,7 @@ func (s *AuthService) RefreshToken(data RefreshTokenRequest) (*RefreshTokenRespo
 
 	user, err := s.tokenService.ValidateToken(data.RefreshToken)
 	if err != nil {
-		s.logger.Warn("Token refresh failed: invalid refresh token", map[string]interface{}{
+		s.logger.Warn("Token refresh failed: invalid refresh token", map[string]any{
 			"error": err.Error(),
 		})
 		return nil, &errors.ErrorResponse{
@@ -162,13 +162,13 @@ func (s *AuthService) RefreshToken(data RefreshTokenRequest) (*RefreshTokenRespo
 		}
 	}
 
-	s.logger.Debug("Validating user exists", map[string]interface{}{
+	s.logger.Debug("Validating user exists", map[string]any{
 		"userID": user.UserID,
 	})
 
 	_, err = s.userRepo.GetUserById(user.UserID)
 	if err != nil {
-		s.logger.Error("Token refresh failed: user not found", map[string]interface{}{
+		s.logger.Error("Token refresh failed: user not found", map[string]any{
 			"userID": user.UserID,
 			"error":  err.Error(),
 		})
@@ -178,13 +178,13 @@ func (s *AuthService) RefreshToken(data RefreshTokenRequest) (*RefreshTokenRespo
 		}
 	}
 
-	s.logger.Debug("Generating new access token", map[string]interface{}{
+	s.logger.Debug("Generating new access token", map[string]any{
 		"userID": user.UserID,
 	})
 
 	accessToken, err := s.tokenService.GetAccessToken(user.UserID)
 	if err != nil {
-		s.logger.Error("Failed to generate new access token", map[string]interface{}{
+		s.logger.Error("Failed to generate new access token", map[string]any{
 			"userID": user.UserID,
 			"error":  err.Error(),
 		})
@@ -194,7 +194,7 @@ func (s *AuthService) RefreshToken(data RefreshTokenRequest) (*RefreshTokenRespo
 		}
 	}
 
-	s.logger.Info("Token refresh completed successfully", map[string]interface{}{
+	s.logger.Info("Token refresh completed successfully", map[string]any{
 		"userID": user.UserID,
 	})
 

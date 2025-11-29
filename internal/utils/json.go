@@ -36,7 +36,7 @@ func DecodeResponse[T any](response string) (T, error) {
 	err := json.Unmarshal([]byte(response), &decodedResponse)
 
 	if err != nil {
-		log.Error("Could not decode response", map[string]interface{}{
+		log.Error("Could not decode response", map[string]any{
 			"error":    err.Error(),
 			"response": response,
 		})
@@ -49,7 +49,7 @@ func DecodeResponse[T any](response string) (T, error) {
 func EncodeToJSON(v any) ([]byte, error) {
 	data, err := json.Marshal(v)
 	if err != nil {
-		log.Error("Could not encode to JSON", map[string]interface{}{
+		log.Error("Could not encode to JSON", map[string]any{
 			"error": err.Error(),
 		})
 		return nil, err

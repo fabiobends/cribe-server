@@ -24,7 +24,7 @@ func NewTranscriptRepository() *TranscriptRepository {
 }
 
 func (r *TranscriptRepository) GetTranscriptByEpisodeID(episodeID int) (Transcript, error) {
-	r.logger.Debug("Fetching transcript by episode ID", map[string]interface{}{
+	r.logger.Debug("Fetching transcript by episode ID", map[string]any{
 		"episodeID": episodeID,
 	})
 
@@ -33,19 +33,19 @@ func (r *TranscriptRepository) GetTranscriptByEpisodeID(episodeID int) (Transcri
 
 	if err != nil {
 		if err.Error() == "no rows in result set" {
-			r.logger.Debug("No transcript found for episode", map[string]interface{}{
+			r.logger.Debug("No transcript found for episode", map[string]any{
 				"episodeID": episodeID,
 			})
 			return Transcript{}, err
 		}
-		r.logger.Error("Failed to fetch transcript", map[string]interface{}{
+		r.logger.Error("Failed to fetch transcript", map[string]any{
 			"episodeID": episodeID,
 			"error":     err.Error(),
 		})
 		return Transcript{}, err
 	}
 
-	r.logger.Debug("Transcript found", map[string]interface{}{
+	r.logger.Debug("Transcript found", map[string]any{
 		"episodeID":    episodeID,
 		"transcriptID": result.ID,
 		"status":       result.Status,
@@ -55,7 +55,7 @@ func (r *TranscriptRepository) GetTranscriptByEpisodeID(episodeID int) (Transcri
 }
 
 func (r *TranscriptRepository) GetEpisodeByID(episodeID int) (Episode, error) {
-	r.logger.Debug("Fetching episode by ID", map[string]interface{}{
+	r.logger.Debug("Fetching episode by ID", map[string]any{
 		"episodeID": episodeID,
 	})
 
@@ -63,14 +63,14 @@ func (r *TranscriptRepository) GetEpisodeByID(episodeID int) (Episode, error) {
 	result, err := r.episodeRepo.Executor.QueryItem(query, episodeID)
 
 	if err != nil {
-		r.logger.Error("Failed to fetch episode", map[string]interface{}{
+		r.logger.Error("Failed to fetch episode", map[string]any{
 			"episodeID": episodeID,
 			"error":     err.Error(),
 		})
 		return Episode{}, err
 	}
 
-	r.logger.Debug("Episode found", map[string]interface{}{
+	r.logger.Debug("Episode found", map[string]any{
 		"episodeID": episodeID,
 	})
 
@@ -78,7 +78,7 @@ func (r *TranscriptRepository) GetEpisodeByID(episodeID int) (Episode, error) {
 }
 
 func (r *TranscriptRepository) CreateTranscript(episodeID int) (int, error) {
-	r.logger.Debug("Creating transcript record", map[string]interface{}{
+	r.logger.Debug("Creating transcript record", map[string]any{
 		"episodeID": episodeID,
 	})
 
@@ -92,7 +92,7 @@ func (r *TranscriptRepository) CreateTranscript(episodeID int) (int, error) {
 
 	rows, err := r.transcriptRepo.Executor.QueryItem(query, episodeID)
 	if err != nil {
-		r.logger.Error("Failed to create transcript", map[string]interface{}{
+		r.logger.Error("Failed to create transcript", map[string]any{
 			"episodeID": episodeID,
 			"error":     err.Error(),
 		})
@@ -100,7 +100,7 @@ func (r *TranscriptRepository) CreateTranscript(episodeID int) (int, error) {
 	}
 
 	transcriptID := rows.ID
-	r.logger.Info("Transcript created", map[string]interface{}{
+	r.logger.Info("Transcript created", map[string]any{
 		"episodeID":    episodeID,
 		"transcriptID": transcriptID,
 	})
@@ -109,7 +109,7 @@ func (r *TranscriptRepository) CreateTranscript(episodeID int) (int, error) {
 }
 
 func (r *TranscriptRepository) UpdateTranscriptStatus(transcriptID int, status string, errorMessage string) error {
-	r.logger.Debug("Updating transcript status", map[string]interface{}{
+	r.logger.Debug("Updating transcript status", map[string]any{
 		"transcriptID": transcriptID,
 		"status":       status,
 	})
@@ -134,7 +134,7 @@ func (r *TranscriptRepository) UpdateTranscriptStatus(transcriptID int, status s
 	}
 
 	if err != nil {
-		r.logger.Error("Failed to update transcript status", map[string]interface{}{
+		r.logger.Error("Failed to update transcript status", map[string]any{
 			"transcriptID": transcriptID,
 			"status":       status,
 			"error":        err.Error(),
@@ -142,7 +142,7 @@ func (r *TranscriptRepository) UpdateTranscriptStatus(transcriptID int, status s
 		return err
 	}
 
-	r.logger.Info("Transcript status updated", map[string]interface{}{
+	r.logger.Info("Transcript status updated", map[string]any{
 		"transcriptID": transcriptID,
 		"status":       status,
 	})
@@ -151,7 +151,7 @@ func (r *TranscriptRepository) UpdateTranscriptStatus(transcriptID int, status s
 }
 
 func (r *TranscriptRepository) GetSpeakersByTranscriptID(transcriptID int) ([]TranscriptSpeaker, error) {
-	r.logger.Debug("Fetching speakers for transcript", map[string]interface{}{
+	r.logger.Debug("Fetching speakers for transcript", map[string]any{
 		"transcriptID": transcriptID,
 	})
 
@@ -159,14 +159,14 @@ func (r *TranscriptRepository) GetSpeakersByTranscriptID(transcriptID int) ([]Tr
 	speakers, err := r.speakerRepo.Executor.QueryList(query, transcriptID)
 
 	if err != nil {
-		r.logger.Error("Failed to fetch speakers", map[string]interface{}{
+		r.logger.Error("Failed to fetch speakers", map[string]any{
 			"transcriptID": transcriptID,
 			"error":        err.Error(),
 		})
 		return nil, err
 	}
 
-	r.logger.Debug("Speakers fetched", map[string]interface{}{
+	r.logger.Debug("Speakers fetched", map[string]any{
 		"transcriptID": transcriptID,
 		"count":        len(speakers),
 	})
@@ -175,7 +175,7 @@ func (r *TranscriptRepository) GetSpeakersByTranscriptID(transcriptID int) ([]Tr
 }
 
 func (r *TranscriptRepository) GetChunksByTranscriptID(transcriptID int) ([]TranscriptChunk, error) {
-	r.logger.Debug("Fetching chunks for transcript", map[string]interface{}{
+	r.logger.Debug("Fetching chunks for transcript", map[string]any{
 		"transcriptID": transcriptID,
 	})
 
@@ -188,14 +188,14 @@ func (r *TranscriptRepository) GetChunksByTranscriptID(transcriptID int) ([]Tran
 	chunks, err := r.chunkRepo.Executor.QueryList(query, transcriptID)
 
 	if err != nil {
-		r.logger.Error("Failed to fetch chunks", map[string]interface{}{
+		r.logger.Error("Failed to fetch chunks", map[string]any{
 			"transcriptID": transcriptID,
 			"error":        err.Error(),
 		})
 		return nil, err
 	}
 
-	r.logger.Debug("Chunks fetched", map[string]interface{}{
+	r.logger.Debug("Chunks fetched", map[string]any{
 		"transcriptID": transcriptID,
 		"count":        len(chunks),
 	})
@@ -208,7 +208,7 @@ func (r *TranscriptRepository) SaveChunks(transcriptID int, chunks []Chunk) erro
 		return nil
 	}
 
-	r.logger.Debug("Saving chunks to database", map[string]interface{}{
+	r.logger.Debug("Saving chunks to database", map[string]any{
 		"transcriptID": transcriptID,
 		"chunkCount":   len(chunks),
 	})
@@ -221,7 +221,7 @@ func (r *TranscriptRepository) SaveChunks(transcriptID int, chunks []Chunk) erro
 			transcriptID, chunk.Position, chunk.SpeakerIndex, chunk.Start, chunk.End, chunk.Text,
 		)
 		if err != nil {
-			r.logger.Error("Failed to save chunk", map[string]interface{}{
+			r.logger.Error("Failed to save chunk", map[string]any{
 				"transcriptID": transcriptID,
 				"position":     chunk.Position,
 				"error":        err.Error(),
@@ -230,7 +230,7 @@ func (r *TranscriptRepository) SaveChunks(transcriptID int, chunks []Chunk) erro
 		}
 	}
 
-	r.logger.Info("Chunks saved successfully", map[string]interface{}{
+	r.logger.Info("Chunks saved successfully", map[string]any{
 		"transcriptID": transcriptID,
 		"chunkCount":   len(chunks),
 	})
@@ -239,7 +239,7 @@ func (r *TranscriptRepository) SaveChunks(transcriptID int, chunks []Chunk) erro
 }
 
 func (r *TranscriptRepository) UpsertSpeaker(transcriptID int, speakerIndex int, speakerName string) error {
-	r.logger.Debug("Upserting speaker", map[string]interface{}{
+	r.logger.Debug("Upserting speaker", map[string]any{
 		"transcriptID": transcriptID,
 		"speakerIndex": speakerIndex,
 		"speakerName":  speakerName,
@@ -254,7 +254,7 @@ func (r *TranscriptRepository) UpsertSpeaker(transcriptID int, speakerIndex int,
 	)
 
 	if err != nil {
-		r.logger.Error("Failed to upsert speaker", map[string]interface{}{
+		r.logger.Error("Failed to upsert speaker", map[string]any{
 			"transcriptID": transcriptID,
 			"speakerIndex": speakerIndex,
 			"error":        err.Error(),
@@ -262,7 +262,7 @@ func (r *TranscriptRepository) UpsertSpeaker(transcriptID int, speakerIndex int,
 		return err
 	}
 
-	r.logger.Info("Speaker upserted successfully", map[string]interface{}{
+	r.logger.Info("Speaker upserted successfully", map[string]any{
 		"transcriptID": transcriptID,
 		"speakerIndex": speakerIndex,
 		"speakerName":  speakerName,

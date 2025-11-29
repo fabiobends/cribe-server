@@ -24,14 +24,14 @@ func NewClient() *Client {
 	baseURL := os.Getenv("TRANSCRIPTION_API_BASE_URL")
 
 	if baseURL == "" || apiKey == "" {
-		log.Error("Missing required environment variables for Transcription client", map[string]interface{}{
+		log.Error("Missing required environment variables for Transcription client", map[string]any{
 			"has_base_url": baseURL != "",
 			"has_api_key":  apiKey != "",
 		})
 		return nil
 	}
 
-	log.Info("Transcription client initialized", map[string]interface{}{
+	log.Info("Transcription client initialized", map[string]any{
 		"apiKey":  strings.Split(apiKey, "")[0] + "...",
 		"baseURL": baseURL,
 	})
@@ -58,7 +58,7 @@ func (c *Client) StreamAudioURL(ctx context.Context, audioURL string, opts Strea
 	reqBody := map[string]string{"url": audioURL}
 	jsonBody, err := utils.EncodeToJSON(reqBody)
 	if err != nil {
-		c.log.Error("Failed to marshal transcription request", map[string]interface{}{
+		c.log.Error("Failed to marshal transcription request", map[string]any{
 			"error": err.Error(),
 		})
 		return fmt.Errorf("failed to marshal request: %w", err)
@@ -66,7 +66,7 @@ func (c *Client) StreamAudioURL(ctx context.Context, audioURL string, opts Strea
 
 	req, err := http.NewRequestWithContext(ctx, "POST", reqURL, bytes.NewReader(jsonBody))
 	if err != nil {
-		c.log.Error("Failed to create transcription request", map[string]interface{}{
+		c.log.Error("Failed to create transcription request", map[string]any{
 			"error": err.Error(),
 		})
 		return fmt.Errorf("failed to create request: %w", err)
@@ -75,7 +75,7 @@ func (c *Client) StreamAudioURL(ctx context.Context, audioURL string, opts Strea
 	req.Header.Set("Authorization", "Token "+c.apiKey)
 	req.Header.Set("Content-Type", "application/json")
 
-	c.log.Info("Streaming audio transcription", map[string]interface{}{
+	c.log.Info("Streaming audio transcription", map[string]any{
 		"audioURL": audioURL,
 		"model":    opts.Model,
 	})
@@ -83,14 +83,14 @@ func (c *Client) StreamAudioURL(ctx context.Context, audioURL string, opts Strea
 	// Send request
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		c.log.Error("Failed to send transcription request", map[string]interface{}{
+		c.log.Error("Failed to send transcription request", map[string]any{
 			"error": err.Error(),
 		})
 		return fmt.Errorf("failed to send request: %w", err)
 	}
 	defer func() {
 		if closeErr := resp.Body.Close(); closeErr != nil {
-			c.log.Error("Failed to close response body", map[string]interface{}{
+			c.log.Error("Failed to close response body", map[string]any{
 				"error": closeErr.Error(),
 			})
 		}
@@ -98,7 +98,7 @@ func (c *Client) StreamAudioURL(ctx context.Context, audioURL string, opts Strea
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		c.log.Error("Transcription API returned error", map[string]interface{}{
+		c.log.Error("Transcription API returned error", map[string]any{
 			"statusCode": resp.StatusCode,
 			"response":   string(body),
 		})
@@ -114,7 +114,7 @@ func (c *Client) processStreamingResponse(body io.Reader, callback StreamCallbac
 	// Read the entire response body
 	responseBody, err := io.ReadAll(body)
 	if err != nil {
-		c.log.Error("Failed to read transcription response", map[string]interface{}{
+		c.log.Error("Failed to read transcription response", map[string]any{
 			"error": err.Error(),
 		})
 		return fmt.Errorf("failed to read response: %w", err)
@@ -123,7 +123,7 @@ func (c *Client) processStreamingResponse(body io.Reader, callback StreamCallbac
 	// Parse the complete response
 	var response StreamResponse
 	if err := json.Unmarshal(responseBody, &response); err != nil {
-		c.log.Error("Failed to parse transcription response", map[string]interface{}{
+		c.log.Error("Failed to parse transcription response", map[string]any{
 			"error":      err.Error(),
 			"bodySample": string(responseBody[:min(len(responseBody), 500)]),
 		})
@@ -139,7 +139,7 @@ func (c *Client) processStreamingResponse(body io.Reader, callback StreamCallbac
 	alternative := response.Results.Channels[0].Alternatives[0]
 	words := alternative.Words
 
-	c.log.Info("Processing transcription words", map[string]interface{}{
+	c.log.Info("Processing transcription words", map[string]any{
 		"totalWords": len(words),
 	})
 
@@ -168,7 +168,7 @@ func (c *Client) processStreamingResponse(body io.Reader, callback StreamCallbac
 		}
 
 		if err := callback(&wordResponse); err != nil {
-			c.log.Error("Callback error processing word", map[string]interface{}{
+			c.log.Error("Callback error processing word", map[string]any{
 				"error":     err.Error(),
 				"wordIndex": i + 1,
 				"word":      word.PunctuatedWord,
@@ -177,7 +177,7 @@ func (c *Client) processStreamingResponse(body io.Reader, callback StreamCallbac
 		}
 	}
 
-	c.log.Info("Transcription stream completed successfully", map[string]interface{}{
+	c.log.Info("Transcription stream completed successfully", map[string]any{
 		"totalWords": len(words),
 	})
 	return nil

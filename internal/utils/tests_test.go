@@ -376,7 +376,7 @@ func TestTestRequest_Struct(t *testing.T) {
 	req := TestRequest{
 		Method: http.MethodPost,
 		URL:    "/api/test",
-		Body:   map[string]interface{}{"key": "value"},
+		Body:   map[string]any{"key": "value"},
 		Headers: map[string]string{
 			"Content-Type":  "application/json",
 			"Authorization": "Bearer token",

@@ -20,7 +20,7 @@ func NewStatusHandler(service StatusServiceInterface) *StatusHandler {
 }
 
 func (handler *StatusHandler) HandleRequest(w http.ResponseWriter, r *http.Request) {
-	handler.logger.Debug("Status request received", map[string]interface{}{
+	handler.logger.Debug("Status request received", map[string]any{
 		"method": r.Method,
 		"path":   r.URL.Path,
 	})
@@ -29,7 +29,7 @@ func (handler *StatusHandler) HandleRequest(w http.ResponseWriter, r *http.Reque
 	case http.MethodGet:
 		handler.handleGet(w, r)
 	default:
-		handler.logger.Warn("Method not allowed for status endpoint", map[string]interface{}{
+		handler.logger.Warn("Method not allowed for status endpoint", map[string]any{
 			"method": r.Method,
 		})
 		utils.NotAllowed(w)
@@ -41,7 +41,7 @@ func (handler *StatusHandler) handleGet(w http.ResponseWriter, r *http.Request) 
 
 	response := handler.service.GetStatus()
 
-	handler.logger.Info("Status response generated successfully", map[string]interface{}{
+	handler.logger.Info("Status response generated successfully", map[string]any{
 		"updatedAt": response.UpdatedAt,
 	})
 

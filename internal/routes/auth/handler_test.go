@@ -118,7 +118,7 @@ func TestAuthHandler_HandleRequest(t *testing.T) {
 			t.Errorf("Expected status code %v, got %v", http.StatusBadRequest, w.Code)
 		}
 
-		response, err := utils.DecodeResponse[map[string]interface{}](w.Body.String())
+		response, err := utils.DecodeResponse[map[string]any](w.Body.String())
 		if err != nil {
 			t.Fatalf("Failed to decode response: %v", err)
 		}
@@ -141,7 +141,7 @@ func TestAuthHandler_HandleRequest(t *testing.T) {
 			t.Errorf("Expected status code %v, got %v", http.StatusBadRequest, w.Code)
 		}
 
-		response, err := utils.DecodeResponse[map[string]interface{}](w.Body.String())
+		response, err := utils.DecodeResponse[map[string]any](w.Body.String())
 		if err != nil {
 			t.Fatalf("Failed to decode response: %v", err)
 		}
@@ -165,7 +165,7 @@ func TestAuthHandler_HandleRequest(t *testing.T) {
 			t.Errorf("Expected status code %v, got %v", http.StatusBadRequest, w.Code)
 		}
 
-		response, err := utils.DecodeResponse[map[string]interface{}](w.Body.String())
+		response, err := utils.DecodeResponse[map[string]any](w.Body.String())
 		if err != nil {
 			t.Fatalf("Failed to decode response: %v", err)
 		}
@@ -188,7 +188,7 @@ func TestAuthHandler_HandleRequest(t *testing.T) {
 			t.Errorf("Expected status code %v, got %v", http.StatusBadRequest, w.Code)
 		}
 
-		response, err := utils.DecodeResponse[map[string]interface{}](w.Body.String())
+		response, err := utils.DecodeResponse[map[string]any](w.Body.String())
 		if err != nil {
 			t.Fatalf("Failed to decode response: %v", err)
 		}
@@ -212,7 +212,7 @@ func TestAuthHandler_HandleRequest(t *testing.T) {
 			t.Errorf("Expected status code %v, got %v", http.StatusBadRequest, w.Code)
 		}
 
-		response, err := utils.DecodeResponse[map[string]interface{}](w.Body.String())
+		response, err := utils.DecodeResponse[map[string]any](w.Body.String())
 		if err != nil {
 			t.Fatalf("Failed to decode response: %v", err)
 		}
@@ -232,7 +232,7 @@ func TestAuthHandler_HandleRequest(t *testing.T) {
 			t.Errorf("Expected status code %v, got %v", http.StatusBadRequest, w.Code)
 		}
 
-		response, err := utils.DecodeResponse[map[string]interface{}](w.Body.String())
+		response, err := utils.DecodeResponse[map[string]any](w.Body.String())
 		if err != nil {
 			t.Fatalf("Failed to decode response: %v", err)
 		}
@@ -256,7 +256,7 @@ func TestAuthHandler_HandleRequest(t *testing.T) {
 			t.Errorf("Expected status code %v, got %v", http.StatusBadRequest, w.Code)
 		}
 
-		response, err := utils.DecodeResponse[map[string]interface{}](w.Body.String())
+		response, err := utils.DecodeResponse[map[string]any](w.Body.String())
 		if err != nil {
 			t.Fatalf("Failed to decode response: %v", err)
 		}
@@ -276,7 +276,7 @@ func TestAuthHandler_HandleRequest(t *testing.T) {
 			t.Errorf("Expected status code %v, got %v", http.StatusBadRequest, w.Code)
 		}
 
-		response, err := utils.DecodeResponse[map[string]interface{}](w.Body.String())
+		response, err := utils.DecodeResponse[map[string]any](w.Body.String())
 		if err != nil {
 			t.Fatalf("Failed to decode response: %v", err)
 		}
@@ -299,7 +299,7 @@ func TestAuthHandler_HandleRequest(t *testing.T) {
 			t.Errorf("Expected status code %v, got %v", http.StatusBadRequest, w.Code)
 		}
 
-		response, err := utils.DecodeResponse[map[string]interface{}](w.Body.String())
+		response, err := utils.DecodeResponse[map[string]any](w.Body.String())
 		if err != nil {
 			t.Fatalf("Failed to decode response: %v", err)
 		}

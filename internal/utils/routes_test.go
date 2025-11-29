@@ -123,7 +123,7 @@ func TestNotAllowed(t *testing.T) {
 
 func TestNotAllowed_MultipleCall(t *testing.T) {
 	// Test that multiple calls to NotAllowed return consistent results
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		t.Run("Call_"+string(rune(i+'1')), func(t *testing.T) {
 			w := httptest.NewRecorder()
 			NotAllowed(w)
@@ -158,7 +158,7 @@ func TestNotFound_ResponseFormat(t *testing.T) {
 	}
 
 	// Verify response is valid JSON
-	response, err := DecodeResponse[map[string]interface{}](w.Body.String())
+	response, err := DecodeResponse[map[string]any](w.Body.String())
 	if err != nil {
 		t.Fatalf("Response is not valid JSON: %v", err)
 	}
@@ -180,7 +180,7 @@ func TestNotAllowed_ResponseFormat(t *testing.T) {
 	NotAllowed(w)
 
 	// Verify response is valid JSON
-	response, err := DecodeResponse[map[string]interface{}](w.Body.String())
+	response, err := DecodeResponse[map[string]any](w.Body.String())
 	if err != nil {
 		t.Fatalf("Response is not valid JSON: %v", err)
 	}

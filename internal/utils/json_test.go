@@ -92,7 +92,7 @@ func TestEncodeResponse(t *testing.T) {
 	tests := []struct {
 		name        string
 		statusCode  int
-		response    interface{}
+		response    any
 		expected    string
 		description string
 	}{
@@ -339,7 +339,7 @@ func TestEncodeToJSON(t *testing.T) {
 	})
 
 	t.Run("should encode map to JSON", func(t *testing.T) {
-		data := map[string]interface{}{
+		data := map[string]any{
 			"status":  "success",
 			"code":    200,
 			"message": "OK",

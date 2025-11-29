@@ -12,7 +12,7 @@ var validate *validator.Validate
 var initOnce sync.Once
 
 // ValidateStruct validates a struct using validator tags and returns formatted errors
-func ValidateStruct(s interface{}) *errors.ErrorResponse {
+func ValidateStruct(s any) *errors.ErrorResponse {
 	initOnce.Do(func() {
 		validate = validator.New()
 	})

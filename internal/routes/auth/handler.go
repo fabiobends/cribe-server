@@ -24,7 +24,7 @@ func NewAuthHandler(service *AuthService) *AuthHandler {
 }
 
 func (handler *AuthHandler) HandleRequest(w http.ResponseWriter, r *http.Request) {
-	handler.logger.Debug("Processing auth request", map[string]interface{}{
+	handler.logger.Debug("Processing auth request", map[string]any{
 		"method": r.Method,
 		"path":   r.URL.Path,
 		"ip":     r.RemoteAddr,
@@ -33,7 +33,7 @@ func (handler *AuthHandler) HandleRequest(w http.ResponseWriter, r *http.Request
 	paths := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
 	validPaths := []string{"refresh", "register", "login"}
 	if len(paths) == 1 || len(paths) > 1 && !slices.Contains(validPaths, paths[1]) {
-		handler.logger.Warn("Invalid auth path requested", map[string]interface{}{
+		handler.logger.Warn("Invalid auth path requested", map[string]any{
 			"path":       r.URL.Path,
 			"validPaths": validPaths,
 		})
@@ -44,7 +44,7 @@ func (handler *AuthHandler) HandleRequest(w http.ResponseWriter, r *http.Request
 	case http.MethodPost:
 		handler.handlePost(w, r)
 	default:
-		handler.logger.Warn("Method not allowed", map[string]interface{}{
+		handler.logger.Warn("Method not allowed", map[string]any{
 			"method": r.Method,
 			"path":   r.URL.Path,
 		})
@@ -56,7 +56,7 @@ func (handler *AuthHandler) handlePost(w http.ResponseWriter, r *http.Request) {
 	path := strings.TrimPrefix(r.URL.Path, "/auth")
 	path = strings.TrimPrefix(path, "/")
 
-	handler.logger.Debug("Processing auth POST request", map[string]interface{}{
+	handler.logger.Debug("Processing auth POST request", map[string]any{
 		"endpoint": path,
 	})
 
@@ -64,7 +64,7 @@ func (handler *AuthHandler) handlePost(w http.ResponseWriter, r *http.Request) {
 		handler.logger.Info("Processing user registration request")
 		userDTO, err := utils.DecodeBody[users.UserDTO](r)
 		if err != nil {
-			handler.logger.Error("Failed to decode registration request body", map[string]interface{}{
+			handler.logger.Error("Failed to decode registration request body", map[string]any{
 				"error": err.Details,
 			})
 			utils.EncodeResponse(w, http.StatusBadRequest, err)
@@ -72,7 +72,7 @@ func (handler *AuthHandler) handlePost(w http.ResponseWriter, r *http.Request) {
 		}
 		err = userDTO.Validate()
 		if err != nil {
-			handler.logger.Warn("Registration validation failed", map[string]interface{}{
+			handler.logger.Warn("Registration validation failed", map[string]any{
 				"error": err.Details,
 			})
 			utils.EncodeResponse(w, http.StatusBadRequest, err)
@@ -80,13 +80,13 @@ func (handler *AuthHandler) handlePost(w http.ResponseWriter, r *http.Request) {
 		}
 		response, err := handler.service.Register(userDTO)
 		if err != nil {
-			handler.logger.Error("Registration failed", map[string]interface{}{
+			handler.logger.Error("Registration failed", map[string]any{
 				"error": err.Details,
 			})
 			utils.EncodeResponse(w, http.StatusInternalServerError, err)
 			return
 		}
-		handler.logger.Info("User registration successful", map[string]interface{}{
+		handler.logger.Info("User registration successful", map[string]any{
 			"userID": response.ID,
 		})
 		utils.EncodeResponse(w, http.StatusCreated, response)
@@ -97,7 +97,7 @@ func (handler *AuthHandler) handlePost(w http.ResponseWriter, r *http.Request) {
 		handler.logger.Info("Processing login request")
 		loginRequest, err := utils.DecodeBody[LoginRequest](r)
 		if err != nil {
-			handler.logger.Error("Failed to decode login request body", map[string]interface{}{
+			handler.logger.Error("Failed to decode login request body", map[string]any{
 				"error": err.Details,
 			})
 			utils.EncodeResponse(w, http.StatusBadRequest, err)
@@ -105,7 +105,7 @@ func (handler *AuthHandler) handlePost(w http.ResponseWriter, r *http.Request) {
 		}
 		err = loginRequest.Validate()
 		if err != nil {
-			handler.logger.Warn("Login validation failed", map[string]interface{}{
+			handler.logger.Warn("Login validation failed", map[string]any{
 				"error": err.Details,
 			})
 			utils.EncodeResponse(w, http.StatusBadRequest, err)
@@ -113,14 +113,14 @@ func (handler *AuthHandler) handlePost(w http.ResponseWriter, r *http.Request) {
 		}
 		response, err := handler.service.Login(loginRequest)
 		if err != nil {
-			handler.logger.Error("Login failed", map[string]interface{}{
+			handler.logger.Error("Login failed", map[string]any{
 				"error": err.Details,
 				"email": loginRequest.Email, // Will be automatically masked
 			})
 			utils.EncodeResponse(w, http.StatusBadRequest, err)
 			return
 		}
-		handler.logger.Info("Login successful", map[string]interface{}{
+		handler.logger.Info("Login successful", map[string]any{
 			"email": loginRequest.Email, // Will be automatically masked
 		})
 		utils.EncodeResponse(w, http.StatusOK, response)
@@ -132,13 +132,13 @@ func (handler *AuthHandler) handlePost(w http.ResponseWriter, r *http.Request) {
 		refreshRequest, err := utils.DecodeBody[RefreshTokenRequest](r)
 		if err != nil {
 			if err.Message == errors.InvalidRequestBody {
-				handler.logger.Warn("Invalid refresh token request body", map[string]interface{}{
+				handler.logger.Warn("Invalid refresh token request body", map[string]any{
 					"error": err.Details,
 				})
 				utils.EncodeResponse(w, http.StatusBadRequest, err)
 				return
 			}
-			handler.logger.Error("Failed to decode refresh token request", map[string]interface{}{
+			handler.logger.Error("Failed to decode refresh token request", map[string]any{
 				"error": err.Details,
 			})
 			utils.EncodeResponse(w, http.StatusInternalServerError, err)
@@ -146,7 +146,7 @@ func (handler *AuthHandler) handlePost(w http.ResponseWriter, r *http.Request) {
 		}
 		err = refreshRequest.Validate()
 		if err != nil {
-			handler.logger.Warn("Refresh token validation failed", map[string]interface{}{
+			handler.logger.Warn("Refresh token validation failed", map[string]any{
 				"error": err.Details,
 			})
 			utils.EncodeResponse(w, http.StatusBadRequest, err)
@@ -154,7 +154,7 @@ func (handler *AuthHandler) handlePost(w http.ResponseWriter, r *http.Request) {
 		}
 		response, err := handler.service.RefreshToken(refreshRequest)
 		if err != nil {
-			handler.logger.Error("Token refresh failed", map[string]interface{}{
+			handler.logger.Error("Token refresh failed", map[string]any{
 				"error": err.Details,
 			})
 			utils.EncodeResponse(w, http.StatusUnauthorized, err)

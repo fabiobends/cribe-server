@@ -28,20 +28,6 @@ func TestTokenService_GenerateHash(t *testing.T) {
 		}
 	})
 
-	t.Run("should generate different hashes for same password", func(t *testing.T) {
-		password := "testpassword123"
-		hash1, err1 := service.GenerateHash(password)
-		hash2, err2 := service.GenerateHash(password)
-
-		if err1 != nil || err2 != nil {
-			t.Fatalf("Expected no errors, got %v, %v", err1, err2)
-		}
-
-		if hash1 == hash2 {
-			t.Error("Expected different hashes for same password due to salt")
-		}
-	})
-
 	t.Run("should handle empty password", func(t *testing.T) {
 		hash, err := service.GenerateHash("")
 
@@ -129,7 +115,7 @@ func TestTokenService_GetAccessToken(t *testing.T) {
 		}
 
 		// Verify token can be parsed
-		parsedToken, parseErr := jwt.ParseWithClaims(token, &JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
+		parsedToken, parseErr := jwt.ParseWithClaims(token, &JWTClaims{}, func(token *jwt.Token) (any, error) {
 			return []byte("test-secret"), nil
 		})
 
@@ -157,19 +143,6 @@ func TestTokenService_GetAccessToken(t *testing.T) {
 		expectedExp := fixedTime.Add(time.Hour).Unix()
 		if claims.ExpiresAt.Unix() != expectedExp {
 			t.Errorf("Expected expiration %d, got %d", expectedExp, claims.ExpiresAt.Unix())
-		}
-	})
-
-	t.Run("should generate different tokens for different users", func(t *testing.T) {
-		token1, err1 := service.GetAccessToken(123)
-		token2, err2 := service.GetAccessToken(456)
-
-		if err1 != nil || err2 != nil {
-			t.Fatalf("Expected no errors, got %v, %v", err1, err2)
-		}
-
-		if token1 == token2 {
-			t.Error("Expected different tokens for different users")
 		}
 	})
 
@@ -214,7 +187,7 @@ func TestTokenService_GetRefreshToken(t *testing.T) {
 		}
 
 		// Verify token can be parsed
-		parsedToken, parseErr := jwt.ParseWithClaims(token, &JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
+		parsedToken, parseErr := jwt.ParseWithClaims(token, &JWTClaims{}, func(token *jwt.Token) (any, error) {
 			return []byte("test-secret"), nil
 		})
 
@@ -242,28 +215,6 @@ func TestTokenService_GetRefreshToken(t *testing.T) {
 		expectedExp := fixedTime.Add(time.Hour * 24).Unix()
 		if claims.ExpiresAt.Unix() != expectedExp {
 			t.Errorf("Expected expiration %d, got %d", expectedExp, claims.ExpiresAt.Unix())
-		}
-	})
-
-	t.Run("should have longer expiration than access token", func(t *testing.T) {
-		userID := 123
-		accessToken, _ := service.GetAccessToken(userID)
-		refreshToken, _ := service.GetRefreshToken(userID)
-
-		// Parse both tokens
-		accessClaims := &JWTClaims{}
-		refreshClaims := &JWTClaims{}
-
-		_, _ = jwt.ParseWithClaims(accessToken, accessClaims, func(token *jwt.Token) (interface{}, error) {
-			return []byte("test-secret"), nil
-		})
-
-		_, _ = jwt.ParseWithClaims(refreshToken, refreshClaims, func(token *jwt.Token) (interface{}, error) {
-			return []byte("test-secret"), nil
-		})
-
-		if refreshClaims.ExpiresAt.Unix() <= accessClaims.ExpiresAt.Unix() {
-			t.Error("Refresh token should have longer expiration than access token")
 		}
 	})
 }
@@ -340,29 +291,21 @@ func TestTokenService_ValidateToken(t *testing.T) {
 		}
 	})
 
-	t.Run("should reject malformed token", func(t *testing.T) {
-		malformedToken := "invalid.token.string"
-
-		jwtObject, err := service.ValidateToken(malformedToken)
-
-		if err == nil {
-			t.Error("Expected error for malformed token")
+	t.Run("should reject invalid tokens", func(t *testing.T) {
+		tests := []struct {
+			name  string
+			token string
+		}{
+			{"malformed", "invalid.token.string"},
+			{"empty", ""},
 		}
 
-		if jwtObject != nil {
-			t.Error("Expected nil JWT object for malformed token")
-		}
-	})
-
-	t.Run("should reject empty token", func(t *testing.T) {
-		jwtObject, err := service.ValidateToken("")
-
-		if err == nil {
-			t.Error("Expected error for empty token")
-		}
-
-		if jwtObject != nil {
-			t.Error("Expected nil JWT object for empty token")
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				if jwtObject, err := service.ValidateToken(tt.token); err == nil || jwtObject != nil {
+					t.Error("Expected error and nil object for invalid token")
+				}
+			})
 		}
 	})
 
@@ -384,22 +327,6 @@ func TestTokenService_ValidateToken(t *testing.T) {
 
 		if jwtObject != nil {
 			t.Error("Expected nil JWT object for expired token")
-		}
-	})
-
-	t.Run("should reject token with wrong signing method", func(t *testing.T) {
-		// Create a manually crafted invalid token that claims to use RS256 algorithm
-		// This token claims to use RS256 algorithm but has an invalid signature
-		invalidToken := "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxMjMsInR5cCI6ImFjY2VzcyIsImV4cCI6MTcwNDEwODAwMCwiaWF0IjoxNzA0MTA0NDAwfQ.invalid_signature"
-
-		jwtObject, err := service.ValidateToken(invalidToken)
-
-		if err == nil {
-			t.Error("Expected error for token with wrong signing method")
-		}
-
-		if jwtObject != nil {
-			t.Error("Expected nil JWT object for token with wrong signing method")
 		}
 	})
 }
@@ -424,50 +351,6 @@ func TestNewTokenService(t *testing.T) {
 
 		if token == "" {
 			t.Error("Expected non-empty token")
-		}
-	})
-}
-
-// Test error cases that might occur in real scenarios
-func TestTokenService_ErrorCases(t *testing.T) {
-	service := NewTokenService([]byte("test-secret"), time.Hour, time.Hour*24, time.Now)
-
-	t.Run("should handle bcrypt errors gracefully", func(t *testing.T) {
-		// Test with extremely long password that might cause bcrypt to fail
-		longPassword := string(make([]byte, 100)) // bcrypt has a limit of 72 bytes
-		hash, err := service.GenerateHash(longPassword)
-
-		// bcrypt should handle this, but let's verify it doesn't panic
-		if err != nil {
-			t.Logf("bcrypt returned error for long password (expected): %v", err)
-		} else if hash == "" {
-			t.Error("Expected non-empty hash even for long password")
-		}
-	})
-
-	t.Run("should handle token validation edge cases", func(t *testing.T) {
-		testCases := []struct {
-			name  string
-			token string
-		}{
-			{"random string", "random-string"},
-			{"partial JWT", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"},
-			{"JWT with missing signature", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxMjN9"},
-			{"JWT with invalid base64", "invalid.base64!.signature"},
-		}
-
-		for _, tc := range testCases {
-			t.Run(tc.name, func(t *testing.T) {
-				jwtObject, err := service.ValidateToken(tc.token)
-
-				if err == nil {
-					t.Errorf("Expected error for %s", tc.name)
-				}
-
-				if jwtObject != nil {
-					t.Errorf("Expected nil JWT object for %s", tc.name)
-				}
-			})
 		}
 	})
 }

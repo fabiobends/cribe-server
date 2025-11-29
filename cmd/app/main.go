@@ -16,14 +16,14 @@ func main() {
 
 	port := utils.GetPort()
 
-	log.Info("Starting Cribe Server", map[string]interface{}{
+	log.Info("Starting Cribe Server", map[string]any{
 		"port": port,
 	})
 
 	err := router.Handler(port)
 
 	if err != nil {
-		log.Error("Server failed to start", map[string]interface{}{
+		log.Error("Server failed to start", map[string]any{
 			"error": err.Error(),
 			"port":  port,
 		})

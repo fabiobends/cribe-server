@@ -37,7 +37,7 @@ func Handler(port string) error {
 	mux.HandleFunc("/users/", users.HandleHTTPRequests)
 	mux.HandleFunc("/", utils.NotFound)
 
-	log.Debug("Registered routes", map[string]interface{}{
+	log.Debug("Registered routes", map[string]any{
 		"routes": []string{"/auth/", "/migrations", "/podcasts/", "/status/", "/transcripts/", "/users/", "/"},
 	})
 
@@ -52,7 +52,7 @@ func Handler(port string) error {
 		MaxHeaderBytes: 1 << 20, // 1 MB
 	}
 
-	log.Info("Starting HTTP server", map[string]interface{}{
+	log.Info("Starting HTTP server", map[string]any{
 		"port":           port,
 		"readTimeout":    "15s",
 		"writeTimeout":   "15s",

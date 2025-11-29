@@ -30,7 +30,7 @@ func CleanDatabaseAndRunMigrations(handlerFunc http.HandlerFunc) error {
 	log.Info("Cleaning database and running migrations", nil)
 	err := CleanDatabase()
 	if err != nil {
-		log.Error("Failed to clean database", map[string]interface{}{
+		log.Error("Failed to clean database", map[string]any{
 			"error": err.Error(),
 		})
 		return err
@@ -41,7 +41,7 @@ func CleanDatabaseAndRunMigrations(handlerFunc http.HandlerFunc) error {
 		HandlerFunc: handlerFunc,
 	})
 	if result.StatusCode != http.StatusCreated {
-		log.Error("Failed to run migrations", map[string]interface{}{
+		log.Error("Failed to run migrations", map[string]any{
 			"status_code": result.StatusCode,
 			"response":    result.Body,
 		})
@@ -54,7 +54,7 @@ func CleanDatabaseAndRunMigrations(handlerFunc http.HandlerFunc) error {
 type TestRequest struct {
 	Method      string
 	URL         string
-	Body        interface{}
+	Body        any
 	Headers     map[string]string
 	HandlerFunc http.HandlerFunc
 }
@@ -68,7 +68,7 @@ type TestResponse[T any] struct {
 
 // SendTestRequest sends an HTTP request and returns the response
 func SendTestRequest[T any](req TestRequest) (*TestResponse[T], error) {
-	log.Debug("Starting test request", map[string]interface{}{
+	log.Debug("Starting test request", map[string]any{
 		"method": req.Method,
 		"url":    req.URL,
 	})
@@ -76,12 +76,12 @@ func SendTestRequest[T any](req TestRequest) (*TestResponse[T], error) {
 	// Create request body if provided
 	var bodyReader *bytes.Buffer
 	if req.Body != nil {
-		log.Debug("Marshaling request body", map[string]interface{}{
+		log.Debug("Marshaling request body", map[string]any{
 			"body": req.Body,
 		})
 		body, err := json.Marshal(req.Body)
 		if err != nil {
-			log.Error("Failed to marshal request body", map[string]interface{}{
+			log.Error("Failed to marshal request body", map[string]any{
 				"error": err.Error(),
 			})
 			return nil, err
@@ -96,7 +96,7 @@ func SendTestRequest[T any](req TestRequest) (*TestResponse[T], error) {
 	log.Debug("Creating new HTTP request", nil)
 	httpReq, err := http.NewRequest(req.Method, req.URL, bodyReader)
 	if err != nil {
-		log.Error("Failed to create HTTP request", map[string]interface{}{
+		log.Error("Failed to create HTTP request", map[string]any{
 			"error": err.Error(),
 		})
 		return nil, err
@@ -109,7 +109,7 @@ func SendTestRequest[T any](req TestRequest) (*TestResponse[T], error) {
 
 	// Set additional headers if provided
 	if len(req.Headers) > 0 {
-		log.Debug("Setting additional headers", map[string]interface{}{
+		log.Debug("Setting additional headers", map[string]any{
 			"headers": req.Headers,
 		})
 		for key, value := range req.Headers {
@@ -124,7 +124,7 @@ func SendTestRequest[T any](req TestRequest) (*TestResponse[T], error) {
 	// Call handler
 	log.Debug("Calling handler function", nil)
 	req.HandlerFunc(rec, httpReq)
-	log.Debug("Handler function completed", map[string]interface{}{
+	log.Debug("Handler function completed", map[string]any{
 		"status_code": rec.Code,
 	})
 
@@ -132,7 +132,7 @@ func SendTestRequest[T any](req TestRequest) (*TestResponse[T], error) {
 	log.Debug("Decoding response body", nil)
 	var responseBody T
 	if err := json.NewDecoder(rec.Body).Decode(&responseBody); err != nil {
-		log.Warn("Failed to decode response body", map[string]interface{}{
+		log.Warn("Failed to decode response body", map[string]any{
 			"error": err.Error(),
 		})
 		return nil, err
@@ -153,7 +153,7 @@ func MustSendTestRequest[T any](req TestRequest) *TestResponse[T] {
 	log.Debug("Starting MustSendTestRequest", nil)
 	resp, err := SendTestRequest[T](req)
 	if err != nil {
-		log.Error("Failed to send test request", map[string]interface{}{
+		log.Error("Failed to send test request", map[string]any{
 			"error": err.Error(),
 		})
 		panic(err) // Panic is acceptable in test utility "Must" functions
