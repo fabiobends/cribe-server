@@ -1,4 +1,4 @@
-package podcasts
+package podcast
 
 import (
 	"bytes"
@@ -12,85 +12,19 @@ import (
 	"cribeapp.com/cribe-server/internal/utils"
 )
 
-// HTTPClient interface for making HTTP requests (allows mocking)
-type HTTPClient interface {
-	Do(req *http.Request) (*http.Response, error)
-}
-
-// PodcastAPIClient handles communication with external podcast API provider
-type PodcastAPIClient struct {
-	userID     string
-	apiKey     string
-	logger     *logger.ContextualLogger
-	httpClient HTTPClient
-	baseURL    string
-}
-
-func NewPodcastAPIClient() *PodcastAPIClient {
-	return &PodcastAPIClient{
+// NewClient creates a new podcast API client
+func NewClient() *Client {
+	return &Client{
 		userID:     os.Getenv("TADDY_USER_ID"),
 		apiKey:     os.Getenv("TADDY_API_KEY"),
-		logger:     logger.NewServiceLogger("PodcastAPIClient"),
+		logger:     logger.NewServiceLogger("PodcastClient"),
 		httpClient: &http.Client{},
 		baseURL:    os.Getenv("PODCAST_API_URL"),
 	}
 }
 
-type GraphQLRequest struct {
-	Query     string                 `json:"query"`
-	Variables map[string]interface{} `json:"variables,omitempty"`
-}
-
-type GraphQLResponse struct {
-	Data   GraphQLData              `json:"data"`
-	Errors []map[string]interface{} `json:"errors,omitempty"`
-}
-
-type GraphQLData struct {
-	GetPopularContent PopularContent `json:"getPopularContent"`
-}
-
-type PopularContent struct {
-	PodcastSeries []ExternalPodcastSeries `json:"podcastSeries"`
-}
-
-type ExternalPodcastSeries struct {
-	UUID        string `json:"uuid"`
-	Name        string `json:"name"`
-	AuthorName  string `json:"authorName"`
-	ImageURL    string `json:"imageUrl"`
-	Description string `json:"description"`
-}
-
-type PodcastEpisode struct {
-	UUID          string `json:"uuid"`
-	Name          string `json:"name"`
-	Description   string `json:"description"`
-	AudioURL      string `json:"audioUrl"`
-	DatePublished int64  `json:"datePublished"`
-	Duration      int    `json:"duration"`
-	ImageURL      string `json:"imageUrl"`
-}
-
-type PodcastWithEpisodes struct {
-	UUID        string           `json:"uuid"`
-	Name        string           `json:"name"`
-	AuthorName  string           `json:"authorName"`
-	ImageURL    string           `json:"imageUrl"`
-	Description string           `json:"description"`
-	Episodes    []PodcastEpisode `json:"episodes"`
-}
-
-type GetPodcastByIDData struct {
-	GetPodcastSeries PodcastWithEpisodes `json:"getPodcastSeries"`
-}
-
-type GetEpisodeByIDData struct {
-	GetPodcastEpisode PodcastEpisode `json:"getPodcastEpisode"`
-}
-
 // GetTopPodcasts fetches the top podcasts from the external API provider
-func (c *PodcastAPIClient) GetTopPodcasts() ([]ExternalPodcast, error) {
+func (c *Client) GetTopPodcasts() ([]ExternalPodcastSeries, error) {
 	c.logger.Debug("Fetching top 10 podcasts from external API", nil)
 
 	query := `
@@ -178,11 +112,7 @@ func (c *PodcastAPIClient) GetTopPodcasts() ([]ExternalPodcast, error) {
 		return nil, fmt.Errorf("graphQL errors: %v", graphQLResp.Errors)
 	}
 
-	// Convert external podcast series to standard format
-	podcasts := make([]ExternalPodcast, len(graphQLResp.Data.GetPopularContent.PodcastSeries))
-	for i, series := range graphQLResp.Data.GetPopularContent.PodcastSeries {
-		podcasts[i] = ExternalPodcast(series)
-	}
+	podcasts := graphQLResp.Data.GetPopularContent.PodcastSeries
 
 	c.logger.Info("Successfully fetched popular podcasts from external API", map[string]interface{}{
 		"count": len(podcasts),
@@ -191,7 +121,8 @@ func (c *PodcastAPIClient) GetTopPodcasts() ([]ExternalPodcast, error) {
 	return podcasts, nil
 }
 
-func (c *PodcastAPIClient) GetPodcastByID(podcastID string) (*PodcastWithEpisodes, error) {
+// GetPodcastByID fetches a podcast with its episodes by ID from the external API
+func (c *Client) GetPodcastByID(podcastID string) (*PodcastWithEpisodes, error) {
 	c.logger.Debug("Fetching podcast by ID from external API", map[string]interface{}{
 		"podcastID": podcastID,
 	})
@@ -302,7 +233,8 @@ func (c *PodcastAPIClient) GetPodcastByID(podcastID string) (*PodcastWithEpisode
 	return &podcast, nil
 }
 
-func (c *PodcastAPIClient) GetEpisodeByID(podcastID, episodeID string) (*PodcastEpisode, error) {
+// GetEpisodeByID fetches a specific episode by ID from the external API
+func (c *Client) GetEpisodeByID(podcastID, episodeID string) (*PodcastEpisode, error) {
 	c.logger.Debug("Fetching episode by ID from external API", map[string]interface{}{
 		"podcastID": podcastID,
 		"episodeID": episodeID,

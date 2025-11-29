@@ -1,6 +1,10 @@
 package podcasts
 
-import "time"
+import (
+	"time"
+
+	"cribeapp.com/cribe-server/internal/clients/podcast"
+)
 
 type Podcast struct {
 	ID          int       `json:"id"`
@@ -28,14 +32,14 @@ type Episode struct {
 	UpdatedAt     time.Time `json:"updated_at"`
 }
 
-// ExternalPodcast represents the structure from external podcast API provider
-type ExternalPodcast struct {
-	UUID        string `json:"uuid"`
-	Name        string `json:"name"`
-	AuthorName  string `json:"authorName"`
-	ImageURL    string `json:"imageUrl"`
-	Description string `json:"description"`
-}
+// ExternalPodcast is an alias for the external podcast series from the client
+type ExternalPodcast = podcast.ExternalPodcastSeries
+
+// PodcastEpisode is an alias for the podcast episode from the client
+type PodcastEpisode = podcast.PodcastEpisode
+
+// PodcastWithEpisodes is an alias for the podcast with episodes from the client
+type PodcastWithEpisodes = podcast.PodcastWithEpisodes
 
 // SyncResult represents the result of a podcast sync operation
 type SyncResult struct {
