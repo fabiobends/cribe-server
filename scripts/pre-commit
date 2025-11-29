@@ -1,9 +1,15 @@
 #!/bin/sh
 
+# Exit immediately if a command exits with a non-zero status
+set -e
+
+# Handle Ctrl+C and other interrupts
+trap 'echo "\n❌ Pre-commit hook interrupted. Aborting commit."; exit 1' INT TERM
+
 echo "Running pre-commit hook..."
 
-# Get all staged Go files
-STAGED_FILES=$(git diff --cached --name-only --diff-filter=d | grep '\.go$')
+# Get all staged Go files (grep returns non-zero if no matches, so we need to handle that)
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=d | grep '\.go$' || true)
 
 if [ -z "$STAGED_FILES" ]; then
     echo "No Go files to format or lint."
@@ -43,5 +49,98 @@ for pkg in $PACKAGES; do
         exit 1
     fi
 done
+
+# Check if staged files have passing tests
+echo "🧪 Checking tests for staged files..."
+TEMP_TEST_FILES=$(mktemp)
+TEMP_FAILED_TESTS=$(mktemp)
+TEMP_MISSING_TESTS=$(mktemp)
+
+# Patterns to exclude from test requirements
+should_skip_test_check() {
+    file="$1"
+
+    # Exclude patterns (Go specific)
+    case "$file" in
+        *_test.go) return 0 ;;  # Skip test files themselves
+        cmd/app/main.go) return 0 ;;  # Skip main entry point
+        */mock_*.go) return 0 ;;  # Skip mock files
+        *.pb.go) return 0 ;;  # Skip protobuf generated files
+        internal/core/router.go) return 0 ;;  # Skip core router
+        */model.go) return 0 ;;  # Skip model files
+    esac
+    return 1
+}
+
+for file in $STAGED_FILES; do
+    # Skip excluded files
+    if should_skip_test_check "$file"; then
+        continue
+    fi
+
+    # Convert file.go to file_test.go in same directory
+    test_file=$(echo "$file" | sed 's|\.go$|_test.go|')
+
+    if [ -f "$test_file" ]; then
+        # Get the package directory for testing
+        pkg_dir=$(dirname "$file")
+
+        # Skip packages that have router_test.go (integration tests requiring make test)
+        if [ -f "$pkg_dir/router_test.go" ]; then
+            continue
+        fi
+
+        echo "$pkg_dir" >> "$TEMP_TEST_FILES"
+    else
+        echo "❌ No test file found for: $file"
+        echo "   Expected: $test_file"
+        echo "$file" >> "$TEMP_MISSING_TESTS"
+    fi
+done
+
+# Check if any files are missing tests
+if [ -s "$TEMP_MISSING_TESTS" ]; then
+    echo ""
+    echo "❌ Some staged Go files are missing corresponding tests."
+    echo "Files without tests:"
+    cat "$TEMP_MISSING_TESTS" | while IFS= read -r missing_file; do
+        [ -n "$missing_file" ] || continue
+        echo "   - $missing_file"
+    done
+    rm -f "$TEMP_TEST_FILES" "$TEMP_FAILED_TESTS" "$TEMP_MISSING_TESTS"
+    exit 1
+fi
+
+if [ -s "$TEMP_TEST_FILES" ]; then
+    echo "🏃 Running tests for staged files..."
+
+    # Get unique package directories and run tests
+    sort -u "$TEMP_TEST_FILES" | while IFS= read -r pkg_dir; do
+        [ -n "$pkg_dir" ] || continue
+        echo "  Testing: $pkg_dir"
+
+        # Run tests for the package and fail on non-zero exit status
+        if ! go test "./$pkg_dir" > /dev/null 2>&1; then
+            echo "$pkg_dir" >> "$TEMP_FAILED_TESTS"
+            echo "  ❌ Tests failed for: $pkg_dir"
+        fi
+    done
+
+    # Check if any tests failed
+    if [ -s "$TEMP_FAILED_TESTS" ]; then
+        echo ""
+        echo "❌ Some tests failed. Please fix them before committing."
+        echo "Failed packages:"
+        cat "$TEMP_FAILED_TESTS" | while IFS= read -r failed_pkg; do
+            echo "   - $failed_pkg"
+        done
+        rm -f "$TEMP_TEST_FILES" "$TEMP_FAILED_TESTS" "$TEMP_MISSING_TESTS"
+        exit 1
+    fi
+
+    echo "✅ All tests passed!"
+fi
+
+rm -f "$TEMP_TEST_FILES" "$TEMP_FAILED_TESTS" "$TEMP_MISSING_TESTS"
 
 echo "Pre-commit hook completed successfully!"
