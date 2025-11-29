@@ -12,6 +12,7 @@ import (
 	"cribeapp.com/cribe-server/internal/routes/migrations"
 	"cribeapp.com/cribe-server/internal/routes/podcasts"
 	"cribeapp.com/cribe-server/internal/routes/status"
+	"cribeapp.com/cribe-server/internal/routes/transcripts"
 	"cribeapp.com/cribe-server/internal/routes/users"
 	"cribeapp.com/cribe-server/internal/utils"
 )
@@ -32,11 +33,12 @@ func Handler(port string) error {
 	mux.HandleFunc("/migrations", migrations.HandleHTTPRequests)
 	mux.HandleFunc("/podcasts/", podcasts.HandleHTTPRequests)
 	mux.HandleFunc("/status/", status.HandleHTTPRequests)
+	mux.HandleFunc("/transcripts/", transcripts.HandleHTTPRequests)
 	mux.HandleFunc("/users/", users.HandleHTTPRequests)
 	mux.HandleFunc("/", utils.NotFound)
 
 	log.Debug("Registered routes", map[string]interface{}{
-		"routes": []string{"/auth/", "/migrations", "/podcasts/", "/status/", "/users/", "/"},
+		"routes": []string{"/auth/", "/migrations", "/podcasts/", "/status/", "/transcripts/", "/users/", "/"},
 	})
 
 	muxWithMiddleware := middlewares.MainMiddleware(mux)

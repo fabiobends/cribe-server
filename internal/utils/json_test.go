@@ -317,3 +317,55 @@ func TestSanitizeJSONString(t *testing.T) {
 		})
 	}
 }
+
+func TestEncodeToJSON(t *testing.T) {
+	t.Run("should encode simple struct to JSON", func(t *testing.T) {
+		type Person struct {
+			Name string `json:"name"`
+			Age  int    `json:"age"`
+		}
+
+		person := Person{Name: "John", Age: 30}
+		data, err := EncodeToJSON(person)
+
+		if err != nil {
+			t.Errorf("Expected no error, got %v", err)
+		}
+
+		expected := `{"name":"John","age":30}`
+		if string(data) != expected {
+			t.Errorf("Expected %s, got %s", expected, string(data))
+		}
+	})
+
+	t.Run("should encode map to JSON", func(t *testing.T) {
+		data := map[string]interface{}{
+			"status":  "success",
+			"code":    200,
+			"message": "OK",
+		}
+
+		result, err := EncodeToJSON(data)
+
+		if err != nil {
+			t.Errorf("Expected no error, got %v", err)
+		}
+
+		if len(result) == 0 {
+			t.Error("Expected non-empty JSON data")
+		}
+	})
+
+	t.Run("should handle nil value", func(t *testing.T) {
+		data, err := EncodeToJSON(nil)
+
+		if err != nil {
+			t.Errorf("Expected no error, got %v", err)
+		}
+
+		expected := "null"
+		if string(data) != expected {
+			t.Errorf("Expected %s, got %s", expected, string(data))
+		}
+	})
+}

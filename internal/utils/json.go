@@ -46,6 +46,17 @@ func DecodeResponse[T any](response string) (T, error) {
 	return decodedResponse, nil
 }
 
+func EncodeToJSON(v any) ([]byte, error) {
+	data, err := json.Marshal(v)
+	if err != nil {
+		log.Error("Could not encode to JSON", map[string]interface{}{
+			"error": err.Error(),
+		})
+		return nil, err
+	}
+	return data, nil
+}
+
 func SanitizeJSONString(response string) string {
 	return strings.Split(response, "\n")[0]
 }
