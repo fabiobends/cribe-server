@@ -3,6 +3,7 @@ package podcasts
 import (
 	"strconv"
 
+	"cribeapp.com/cribe-server/internal/clients/podcast"
 	"cribeapp.com/cribe-server/internal/errors"
 )
 
@@ -12,13 +13,13 @@ type PodcastRepo interface {
 	GetPodcastByExternalID(externalID string) (Podcast, error)
 	UpsertPodcast(podcast ExternalPodcast) (Podcast, error)
 	GetEpisodesByPodcastID(podcastID int) ([]Episode, error)
-	UpsertEpisode(episode PodcastEpisode, podcastID int) (Episode, error)
+	UpsertEpisode(episode podcast.PodcastEpisode, podcastID int) (Episode, error)
 }
 
 type PodcastAPIClientInterface interface {
-	GetTopPodcasts() ([]ExternalPodcast, error)
-	GetPodcastByID(podcastID string) (*PodcastWithEpisodes, error)
-	GetEpisodeByID(podcastID, episodeID string) (*PodcastEpisode, error)
+	GetTopPodcasts() ([]podcast.ExternalPodcastSeries, error)
+	GetPodcastByID(podcastID string) (*podcast.PodcastWithEpisodes, error)
+	GetEpisodeByID(podcastID, episodeID string) (*podcast.PodcastEpisode, error)
 }
 
 type PodcastService struct {

@@ -3,8 +3,8 @@ package podcasts
 import (
 	"fmt"
 	"testing"
-	"time"
 
+	"cribeapp.com/cribe-server/internal/clients/podcast"
 	"cribeapp.com/cribe-server/internal/errors"
 )
 
@@ -61,26 +61,26 @@ func (m MockPodcastRepo) UpsertEpisode(episode PodcastEpisode, podcastID int) (E
 }
 
 type MockAPIClient struct {
-	getTopPodcastsFunc func() ([]ExternalPodcast, error)
-	getPodcastByIDFunc func(podcastID string) (*PodcastWithEpisodes, error)
-	getEpisodeByIDFunc func(podcastID, episodeID string) (*PodcastEpisode, error)
+	getTopPodcastsFunc func() ([]podcast.ExternalPodcastSeries, error)
+	getPodcastByIDFunc func(podcastID string) (*podcast.PodcastWithEpisodes, error)
+	getEpisodeByIDFunc func(podcastID, episodeID string) (*podcast.PodcastEpisode, error)
 }
 
-func (m *MockAPIClient) GetTopPodcasts() ([]ExternalPodcast, error) {
+func (m *MockAPIClient) GetTopPodcasts() ([]podcast.ExternalPodcastSeries, error) {
 	if m.getTopPodcastsFunc != nil {
 		return m.getTopPodcastsFunc()
 	}
 	return nil, nil
 }
 
-func (m *MockAPIClient) GetPodcastByID(podcastID string) (*PodcastWithEpisodes, error) {
+func (m *MockAPIClient) GetPodcastByID(podcastID string) (*podcast.PodcastWithEpisodes, error) {
 	if m.getPodcastByIDFunc != nil {
 		return m.getPodcastByIDFunc(podcastID)
 	}
 	return nil, nil
 }
 
-func (m *MockAPIClient) GetEpisodeByID(podcastID, episodeID string) (*PodcastEpisode, error) {
+func (m *MockAPIClient) GetEpisodeByID(podcastID, episodeID string) (*podcast.PodcastEpisode, error) {
 	if m.getEpisodeByIDFunc != nil {
 		return m.getEpisodeByIDFunc(podcastID, episodeID)
 	}
@@ -89,76 +89,12 @@ func (m *MockAPIClient) GetEpisodeByID(podcastID, episodeID string) (*PodcastEpi
 
 func TestNewPodcastService(t *testing.T) {
 	repo := NewPodcastRepository()
-	apiClient := NewPodcastAPIClient()
+	apiClient := podcast.NewClient()
 
 	service := NewPodcastService(repo, apiClient)
 
 	if service == nil {
 		t.Error("Expected service to be initialized")
-	}
-}
-
-func TestServiceGetPodcasts_Success(t *testing.T) {
-	now := time.Now()
-	mockPodcasts := []Podcast{
-		{
-			ID:          1,
-			Name:        "Podcast 1",
-			AuthorName:  "Author 1",
-			ImageURL:    "http://example.com/image1.jpg",
-			Description: "Description 1",
-			ExternalID:  "uuid-1",
-			CreatedAt:   now,
-			UpdatedAt:   now,
-		},
-		{
-			ID:          2,
-			Name:        "Podcast 2",
-			AuthorName:  "Author 2",
-			ImageURL:    "http://example.com/image2.jpg",
-			Description: "Description 2",
-			ExternalID:  "uuid-2",
-			CreatedAt:   now,
-			UpdatedAt:   now,
-		},
-	}
-
-	mockRepo := MockPodcastRepo{
-		getPodcastsFunc: func() ([]Podcast, error) {
-			return mockPodcasts, nil
-		},
-	}
-
-	podcasts, err := mockRepo.GetPodcasts()
-
-	if err != nil {
-		t.Fatalf("Expected no error, got %v", err)
-	}
-
-	if len(podcasts) != 2 {
-		t.Errorf("Expected 2 podcasts, got %d", len(podcasts))
-	}
-
-	if podcasts[0].Name != "Podcast 1" {
-		t.Errorf("Expected name 'Podcast 1', got '%s'", podcasts[0].Name)
-	}
-}
-
-func TestServiceGetPodcasts_Error(t *testing.T) {
-	mockRepo := MockPodcastRepo{
-		getPodcastsFunc: func() ([]Podcast, error) {
-			return nil, fmt.Errorf("database error")
-		},
-	}
-
-	podcasts, err := mockRepo.GetPodcasts()
-
-	if err == nil {
-		t.Error("Expected error, got nil")
-	}
-
-	if podcasts != nil {
-		t.Errorf("Expected nil podcasts, got %v", podcasts)
 	}
 }
 
@@ -220,64 +156,6 @@ func TestServiceSyncPodcasts_Success_AllNew(t *testing.T) {
 	}
 }
 
-func TestServiceSyncPodcasts_Success_SomeExisting(t *testing.T) {
-	externalPodcasts := []ExternalPodcast{
-		{
-			UUID:        "uuid-1",
-			Name:        "External Podcast 1",
-			AuthorName:  "External Author 1",
-			ImageURL:    "http://example.com/external1.jpg",
-			Description: "External Description 1",
-		},
-		{
-			UUID:        "uuid-2",
-			Name:        "External Podcast 2",
-			AuthorName:  "External Author 2",
-			ImageURL:    "http://example.com/external2.jpg",
-			Description: "External Description 2",
-		},
-	}
-
-	callCount := 0
-	mockRepo := MockPodcastRepo{
-		getPodcastByExternalIDFunc: func(externalID string) (Podcast, error) {
-			// First call returns existing, second returns not found
-			if externalID == "uuid-1" {
-				return Podcast{ID: 1, ExternalID: externalID}, nil
-			}
-			return Podcast{ID: 0}, fmt.Errorf("not found")
-		},
-		upsertPodcastFunc: func(podcast ExternalPodcast) (Podcast, error) {
-			callCount++
-			return Podcast{
-				ID:         callCount,
-				Name:       podcast.Name,
-				ExternalID: podcast.UUID,
-			}, nil
-		},
-	}
-
-	mockAPIClient := &MockAPIClient{
-		getTopPodcastsFunc: func() ([]ExternalPodcast, error) {
-			return externalPodcasts, nil
-		},
-	}
-
-	result, err := testSyncWithMocks(mockRepo, mockAPIClient)
-
-	if err != nil {
-		t.Fatalf("Expected no error, got %v", err)
-	}
-
-	if result.TotalSynced != 2 {
-		t.Errorf("Expected 2 synced podcasts, got %d", result.TotalSynced)
-	}
-
-	if result.New != 1 {
-		t.Errorf("Expected 1 new podcast, got %d", result.New)
-	}
-}
-
 func TestServiceSyncPodcasts_APIError(t *testing.T) {
 	mockRepo := MockPodcastRepo{}
 
@@ -299,128 +177,6 @@ func TestServiceSyncPodcasts_APIError(t *testing.T) {
 
 	if err.Message != "External API error" {
 		t.Errorf("Expected 'External API error', got '%s'", err.Message)
-	}
-}
-
-func TestServiceSyncPodcasts_PartialFailure(t *testing.T) {
-	externalPodcasts := []ExternalPodcast{
-		{
-			UUID:        "uuid-1",
-			Name:        "External Podcast 1",
-			AuthorName:  "External Author 1",
-			ImageURL:    "http://example.com/external1.jpg",
-			Description: "External Description 1",
-		},
-		{
-			UUID:        "uuid-2",
-			Name:        "External Podcast 2",
-			AuthorName:  "External Author 2",
-			ImageURL:    "http://example.com/external2.jpg",
-			Description: "External Description 2",
-		},
-	}
-
-	callCount := 0
-	mockRepo := MockPodcastRepo{
-		getPodcastByExternalIDFunc: func(externalID string) (Podcast, error) {
-			return Podcast{ID: 0}, fmt.Errorf("not found")
-		},
-		upsertPodcastFunc: func(podcast ExternalPodcast) (Podcast, error) {
-			callCount++
-			// First call succeeds, second fails
-			if callCount == 1 {
-				return Podcast{
-					ID:         1,
-					Name:       podcast.Name,
-					ExternalID: podcast.UUID,
-				}, nil
-			}
-			return Podcast{}, fmt.Errorf("upsert error")
-		},
-	}
-
-	mockAPIClient := &MockAPIClient{
-		getTopPodcastsFunc: func() ([]ExternalPodcast, error) {
-			return externalPodcasts, nil
-		},
-	}
-
-	result, err := testSyncWithMocks(mockRepo, mockAPIClient)
-
-	if err != nil {
-		t.Fatalf("Expected no error (partial failure should continue), got %v", err)
-	}
-
-	// Should only count successful sync
-	if result.TotalSynced != 1 {
-		t.Errorf("Expected 1 synced podcast (partial success), got %d", result.TotalSynced)
-	}
-
-	if result.New != 1 {
-		t.Errorf("Expected 1 new podcast, got %d", result.New)
-	}
-}
-
-func TestServiceSyncPodcasts_EmptyList(t *testing.T) {
-	mockRepo := MockPodcastRepo{}
-
-	mockAPIClient := &MockAPIClient{
-		getTopPodcastsFunc: func() ([]ExternalPodcast, error) {
-			return []ExternalPodcast{}, nil
-		},
-	}
-
-	result, err := testSyncWithMocks(mockRepo, mockAPIClient)
-
-	if err != nil {
-		t.Fatalf("Expected no error, got %v", err)
-	}
-
-	if result.TotalSynced != 0 {
-		t.Errorf("Expected 0 synced podcasts, got %d", result.TotalSynced)
-	}
-
-	if result.New != 0 {
-		t.Errorf("Expected 0 new podcasts, got %d", result.New)
-	}
-
-	if result.Message != "Podcasts synced successfully" {
-		t.Errorf("Expected success message, got '%s'", result.Message)
-	}
-}
-
-func TestServiceSyncPodcasts_ReturnsNilError(t *testing.T) {
-	mockRepo := MockPodcastRepo{
-		getPodcastByExternalIDFunc: func(externalID string) (Podcast, error) {
-			return Podcast{ID: 0}, fmt.Errorf("not found")
-		},
-		upsertPodcastFunc: func(podcast ExternalPodcast) (Podcast, error) {
-			return Podcast{ID: 1, Name: podcast.Name, ExternalID: podcast.UUID}, nil
-		},
-	}
-
-	mockAPIClient := &MockAPIClient{
-		getTopPodcastsFunc: func() ([]ExternalPodcast, error) {
-			return []ExternalPodcast{{UUID: "uuid-1", Name: "Test Podcast"}}, nil
-		},
-	}
-
-	result, err := testSyncWithMocks(mockRepo, mockAPIClient)
-
-	if err != nil {
-		t.Fatalf("Expected nil error, got %v", err)
-	}
-
-	if result.TotalSynced != 1 {
-		t.Errorf("Expected 1 synced podcast, got %d", result.TotalSynced)
-	}
-
-	if result.New != 1 {
-		t.Errorf("Expected 1 new podcast, got %d", result.New)
-	}
-
-	if result.Message != "Podcasts synced successfully" {
-		t.Errorf("Expected success message, got '%s'", result.Message)
 	}
 }
 

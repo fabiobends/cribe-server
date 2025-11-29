@@ -1,6 +1,7 @@
 package podcasts
 
 import (
+	"cribeapp.com/cribe-server/internal/clients/podcast"
 	"cribeapp.com/cribe-server/internal/core/logger"
 	"cribeapp.com/cribe-server/internal/utils"
 )
@@ -180,7 +181,7 @@ func (r *PodcastRepository) GetEpisodesByPodcastID(podcastID int) ([]Episode, er
 	return result, nil
 }
 
-func (r *PodcastRepository) UpsertEpisode(episode PodcastEpisode, podcastID int) (Episode, error) {
+func (r *PodcastRepository) UpsertEpisode(episode podcast.PodcastEpisode, podcastID int) (Episode, error) {
 	r.logger.Debug("Upserting episode", map[string]interface{}{
 		"externalID": episode.UUID,
 		"podcastID":  podcastID,
