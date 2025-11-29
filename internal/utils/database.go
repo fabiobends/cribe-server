@@ -42,14 +42,14 @@ func NewConnection() PgxConn {
 	databaseUrl := os.Getenv("DATABASE_URL")
 
 	if os.Getenv("APP_ENV") == "test" {
-		log.Debug("Using database connection", map[string]interface{}{
+		log.Debug("Using database connection", map[string]any{
 			"database_url": databaseUrl,
 		})
 	}
 
 	conn, err := pgx.Connect(context.Background(), databaseUrl)
 	if err != nil {
-		log.Error("Unable to connect to database", map[string]interface{}{
+		log.Error("Unable to connect to database", map[string]any{
 			"error": err.Error(),
 		})
 		return nil
@@ -68,7 +68,7 @@ func (db *Database[T]) QueryItem(query string, params ...any) (T, error) {
 
 	rows, err := conn.Query(context.Background(), query, params...)
 	if err != nil {
-		log.Error("Unable to query rows", map[string]interface{}{
+		log.Error("Unable to query rows", map[string]any{
 			"error": err.Error(),
 			"query": query,
 		})
@@ -78,7 +78,7 @@ func (db *Database[T]) QueryItem(query string, params ...any) (T, error) {
 
 	item, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByNameLax[T])
 	if err != nil && err.Error() != "no rows in result set" {
-		log.Error("Unable to collect row", map[string]interface{}{
+		log.Error("Unable to collect row", map[string]any{
 			"error": err.Error(),
 			"query": query,
 		})
@@ -96,7 +96,7 @@ func (db *Database[T]) QueryList(query string, params ...any) ([]T, error) {
 
 	rows, err := conn.Query(context.Background(), query, params...)
 	if err != nil {
-		log.Error("Unable to query rows", map[string]interface{}{
+		log.Error("Unable to query rows", map[string]any{
 			"error": err.Error(),
 			"query": query,
 		})
@@ -106,7 +106,7 @@ func (db *Database[T]) QueryList(query string, params ...any) ([]T, error) {
 
 	items, err := pgx.CollectRows(rows, pgx.RowToStructByNameLax[T])
 	if err != nil {
-		log.Error("Unable to collect rows", map[string]interface{}{
+		log.Error("Unable to collect rows", map[string]any{
 			"error": err.Error(),
 			"query": query,
 		})
@@ -125,7 +125,7 @@ func (db *Database[T]) Exec(query string, params ...any) error {
 
 	_, err := conn.Exec(context.Background(), query, params...)
 	if err != nil {
-		log.Error("Unable to execute query", map[string]interface{}{
+		log.Error("Unable to execute query", map[string]any{
 			"error": err.Error(),
 			"query": query,
 		})

@@ -44,7 +44,7 @@ type LogContext struct {
 	EntityType   EntityType
 	EntityName   string
 	FunctionName string
-	Extra        map[string]interface{}
+	Extra        map[string]any
 }
 
 // Logger defines the interface for all logger implementations

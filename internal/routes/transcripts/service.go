@@ -55,7 +55,7 @@ type SpeakerCallback func(speaker *Speaker) error
 
 // StreamTranscript streams a transcript for an episode
 func (s *Service) StreamTranscript(ctx context.Context, episodeID int, chunkCB ChunkCallback, speakerCB SpeakerCallback) error {
-	s.log.Info("Starting transcript stream", map[string]interface{}{
+	s.log.Info("Starting transcript stream", map[string]any{
 		"episodeID": episodeID,
 	})
 
@@ -66,7 +66,7 @@ func (s *Service) StreamTranscript(ctx context.Context, episodeID int, chunkCB C
 	}
 
 	if exists {
-		s.log.Info("Streaming cached transcript from DB", map[string]interface{}{
+		s.log.Info("Streaming cached transcript from DB", map[string]any{
 			"episodeID":    episodeID,
 			"transcriptID": transcriptID,
 		})
@@ -79,7 +79,7 @@ func (s *Service) StreamTranscript(ctx context.Context, episodeID int, chunkCB C
 		return fmt.Errorf("failed to get episode: %w", err)
 	}
 
-	s.log.Info("Streaming from transcription API", map[string]interface{}{
+	s.log.Info("Streaming from transcription API", map[string]any{
 		"audioURL": episode.AudioURL,
 	})
 
@@ -214,13 +214,13 @@ func (s *Service) streamFromTranscriptionAPI(ctx context.Context, transcriptID i
 
 	if err != nil {
 		_ = s.repo.UpdateTranscriptStatus(transcriptID, string(TranscriptStatusFailed), err.Error())
-		s.log.Error("Transcription streaming error", map[string]interface{}{
+		s.log.Error("Transcription streaming error", map[string]any{
 			"error": err.Error(),
 		})
 		return fmt.Errorf("transcription streaming error: %w", err)
 	}
 
-	s.log.Info("Transcription completed, saving to DB", map[string]interface{}{
+	s.log.Info("Transcription completed, saving to DB", map[string]any{
 		"totalChunks": len(chunks),
 	})
 
@@ -239,7 +239,7 @@ func (s *Service) streamFromTranscriptionAPI(ctx context.Context, transcriptID i
 			// Use background context to prevent cancellation when client disconnects
 			speakerName, err := s.llmClient.InferSpeakerName(context.Background(), episodeDesc, idx, words)
 			if err != nil {
-				s.log.Error("Failed to infer speaker name", map[string]interface{}{
+				s.log.Error("Failed to infer speaker name", map[string]any{
 					"error":        err.Error(),
 					"speakerIndex": idx,
 				})
@@ -248,7 +248,7 @@ func (s *Service) streamFromTranscriptionAPI(ctx context.Context, transcriptID i
 
 			// Update database
 			if err := s.repo.UpsertSpeaker(transcriptID, idx, speakerName); err != nil {
-				s.log.Error("Failed to save speaker", map[string]interface{}{
+				s.log.Error("Failed to save speaker", map[string]any{
 					"error": err.Error(),
 				})
 				return
@@ -259,13 +259,13 @@ func (s *Service) streamFromTranscriptionAPI(ctx context.Context, transcriptID i
 				Index: idx,
 				Name:  speakerName,
 			}); err != nil {
-				s.log.Error("Failed to send speaker update", map[string]interface{}{
+				s.log.Error("Failed to send speaker update", map[string]any{
 					"error": err.Error(),
 				})
 				return
 			}
 
-			s.log.Info("Speaker name inferred and updated", map[string]interface{}{
+			s.log.Info("Speaker name inferred and updated", map[string]any{
 				"speakerIndex": idx,
 				"speakerName":  speakerName,
 			})

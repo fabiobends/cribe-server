@@ -18,7 +18,7 @@ func MainMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 
-		log.Debug("Processing request", map[string]interface{}{
+		log.Debug("Processing request", map[string]any{
 			"method": r.Method,
 			"path":   r.URL.Path,
 			"ip":     r.RemoteAddr,
@@ -30,7 +30,7 @@ func MainMiddleware(next http.Handler) http.Handler {
 		// Check if the route is public or unknown
 		isPrivate := PrivateCheckerMiddleware(w, r)
 		if isPrivate {
-			log.Debug("Route requires authentication", map[string]interface{}{
+			log.Debug("Route requires authentication", map[string]any{
 				"path": r.URL.Path,
 			})
 
@@ -43,12 +43,12 @@ func MainMiddleware(next http.Handler) http.Handler {
 				defaultEmail := feature_flags.GetDefaultEmail()
 				userID, authError = feature_flags.TryDevAuth(defaultEmail)
 				if authError != nil {
-					log.Warn("Dev auth failed", map[string]interface{}{
+					log.Warn("Dev auth failed", map[string]any{
 						"email": defaultEmail, // Will be automatically masked
 						"error": authError.Details,
 					})
 				} else {
-					log.Info("Dev auth successful", map[string]interface{}{
+					log.Info("Dev auth successful", map[string]any{
 						"email":  defaultEmail, // Will be automatically masked
 						"userID": userID,
 					})
@@ -69,14 +69,14 @@ func MainMiddleware(next http.Handler) http.Handler {
 				}
 				userToken, err := AuthMiddleware(w, r, tokenService)
 				if err != nil {
-					log.Warn("Token authentication failed", map[string]interface{}{
+					log.Warn("Token authentication failed", map[string]any{
 						"error": err.Details,
 					})
 					utils.EncodeResponse(w, http.StatusUnauthorized, err)
 					return
 				}
 				userID = userToken.UserID
-				log.Debug("Token authentication successful", map[string]interface{}{
+				log.Debug("Token authentication successful", map[string]any{
 					"userID": userID,
 				})
 			}
@@ -86,7 +86,7 @@ func MainMiddleware(next http.Handler) http.Handler {
 			ctx = context.WithValue(ctx, UserIDContextKey, userID)
 			r = r.WithContext(ctx)
 		} else {
-			log.Debug("Route is public, no authentication required", map[string]interface{}{
+			log.Debug("Route is public, no authentication required", map[string]any{
 				"path": r.URL.Path,
 			})
 		}
@@ -95,7 +95,7 @@ func MainMiddleware(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 
 		duration := time.Since(start)
-		log.Debug("Request completed", map[string]interface{}{
+		log.Debug("Request completed", map[string]any{
 			"path":     r.URL.Path,
 			"method":   r.Method,
 			"duration": duration.String(),

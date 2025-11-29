@@ -48,7 +48,7 @@ func (c *Client) GetTopPodcasts() ([]ExternalPodcastSeries, error) {
 
 	jsonData, err := json.Marshal(reqBody)
 	if err != nil {
-		c.logger.Error("Failed to marshal GraphQL request", map[string]interface{}{
+		c.logger.Error("Failed to marshal GraphQL request", map[string]any{
 			"error": err.Error(),
 		})
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
@@ -56,7 +56,7 @@ func (c *Client) GetTopPodcasts() ([]ExternalPodcastSeries, error) {
 
 	req, err := http.NewRequest("POST", c.baseURL, bytes.NewBuffer(jsonData))
 	if err != nil {
-		c.logger.Error("Failed to create HTTP request", map[string]interface{}{
+		c.logger.Error("Failed to create HTTP request", map[string]any{
 			"error": err.Error(),
 		})
 		return nil, fmt.Errorf("failed to create request: %w", err)
@@ -68,14 +68,14 @@ func (c *Client) GetTopPodcasts() ([]ExternalPodcastSeries, error) {
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		c.logger.Error("Failed to execute HTTP request", map[string]interface{}{
+		c.logger.Error("Failed to execute HTTP request", map[string]any{
 			"error": err.Error(),
 		})
 		return nil, fmt.Errorf("failed to execute request: %w", err)
 	}
 	defer func() {
 		if closeErr := resp.Body.Close(); closeErr != nil {
-			c.logger.Error("Failed to close response body", map[string]interface{}{
+			c.logger.Error("Failed to close response body", map[string]any{
 				"error": closeErr.Error(),
 			})
 		}
@@ -83,14 +83,14 @@ func (c *Client) GetTopPodcasts() ([]ExternalPodcastSeries, error) {
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		c.logger.Error("Failed to read response body", map[string]interface{}{
+		c.logger.Error("Failed to read response body", map[string]any{
 			"error": err.Error(),
 		})
 		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		c.logger.Error("External API returned non-200 status", map[string]interface{}{
+		c.logger.Error("External API returned non-200 status", map[string]any{
 			"statusCode": resp.StatusCode,
 			"response":   string(body),
 		})
@@ -99,14 +99,14 @@ func (c *Client) GetTopPodcasts() ([]ExternalPodcastSeries, error) {
 
 	graphQLResp, err := utils.DecodeResponse[GraphQLResponse](string(body))
 	if err != nil {
-		c.logger.Error("Failed to unmarshal GraphQL response", map[string]interface{}{
+		c.logger.Error("Failed to unmarshal GraphQL response", map[string]any{
 			"error": err.Error(),
 		})
 		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 
 	if len(graphQLResp.Errors) > 0 {
-		c.logger.Error("GraphQL returned errors", map[string]interface{}{
+		c.logger.Error("GraphQL returned errors", map[string]any{
 			"errors": graphQLResp.Errors,
 		})
 		return nil, fmt.Errorf("graphQL errors: %v", graphQLResp.Errors)
@@ -114,7 +114,7 @@ func (c *Client) GetTopPodcasts() ([]ExternalPodcastSeries, error) {
 
 	podcasts := graphQLResp.Data.GetPopularContent.PodcastSeries
 
-	c.logger.Info("Successfully fetched popular podcasts from external API", map[string]interface{}{
+	c.logger.Info("Successfully fetched popular podcasts from external API", map[string]any{
 		"count": len(podcasts),
 	})
 
@@ -123,7 +123,7 @@ func (c *Client) GetTopPodcasts() ([]ExternalPodcastSeries, error) {
 
 // GetPodcastByID fetches a podcast with its episodes by ID from the external API
 func (c *Client) GetPodcastByID(podcastID string) (*PodcastWithEpisodes, error) {
-	c.logger.Debug("Fetching podcast by ID from external API", map[string]interface{}{
+	c.logger.Debug("Fetching podcast by ID from external API", map[string]any{
 		"podcastID": podcastID,
 	})
 
@@ -154,7 +154,7 @@ func (c *Client) GetPodcastByID(podcastID string) (*PodcastWithEpisodes, error) 
 
 	jsonData, err := json.Marshal(reqBody)
 	if err != nil {
-		c.logger.Error("Failed to marshal GraphQL request", map[string]interface{}{
+		c.logger.Error("Failed to marshal GraphQL request", map[string]any{
 			"error": err.Error(),
 		})
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
@@ -162,7 +162,7 @@ func (c *Client) GetPodcastByID(podcastID string) (*PodcastWithEpisodes, error) 
 
 	req, err := http.NewRequest("POST", c.baseURL, bytes.NewBuffer(jsonData))
 	if err != nil {
-		c.logger.Error("Failed to create HTTP request", map[string]interface{}{
+		c.logger.Error("Failed to create HTTP request", map[string]any{
 			"error": err.Error(),
 		})
 		return nil, fmt.Errorf("failed to create request: %w", err)
@@ -174,14 +174,14 @@ func (c *Client) GetPodcastByID(podcastID string) (*PodcastWithEpisodes, error) 
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		c.logger.Error("Failed to execute HTTP request", map[string]interface{}{
+		c.logger.Error("Failed to execute HTTP request", map[string]any{
 			"error": err.Error(),
 		})
 		return nil, fmt.Errorf("failed to execute request: %w", err)
 	}
 	defer func() {
 		if closeErr := resp.Body.Close(); closeErr != nil {
-			c.logger.Error("Failed to close response body", map[string]interface{}{
+			c.logger.Error("Failed to close response body", map[string]any{
 				"error": closeErr.Error(),
 			})
 		}
@@ -189,14 +189,14 @@ func (c *Client) GetPodcastByID(podcastID string) (*PodcastWithEpisodes, error) 
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		c.logger.Error("Failed to read response body", map[string]interface{}{
+		c.logger.Error("Failed to read response body", map[string]any{
 			"error": err.Error(),
 		})
 		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		c.logger.Error("External API returned non-200 status", map[string]interface{}{
+		c.logger.Error("External API returned non-200 status", map[string]any{
 			"statusCode": resp.StatusCode,
 			"response":   string(body),
 		})
@@ -204,20 +204,20 @@ func (c *Client) GetPodcastByID(podcastID string) (*PodcastWithEpisodes, error) 
 	}
 
 	type GetPodcastResponse struct {
-		Data   GetPodcastByIDData       `json:"data"`
-		Errors []map[string]interface{} `json:"errors,omitempty"`
+		Data   GetPodcastByIDData `json:"data"`
+		Errors []map[string]any   `json:"errors,omitempty"`
 	}
 
 	graphQLResp, err := utils.DecodeResponse[GetPodcastResponse](string(body))
 	if err != nil {
-		c.logger.Error("Failed to unmarshal GraphQL response", map[string]interface{}{
+		c.logger.Error("Failed to unmarshal GraphQL response", map[string]any{
 			"error": err.Error(),
 		})
 		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 
 	if len(graphQLResp.Errors) > 0 {
-		c.logger.Error("GraphQL returned errors", map[string]interface{}{
+		c.logger.Error("GraphQL returned errors", map[string]any{
 			"errors": graphQLResp.Errors,
 		})
 		return nil, fmt.Errorf("graphQL errors: %v", graphQLResp.Errors)
@@ -225,7 +225,7 @@ func (c *Client) GetPodcastByID(podcastID string) (*PodcastWithEpisodes, error) 
 
 	podcast := graphQLResp.Data.GetPodcastSeries
 
-	c.logger.Info("Successfully fetched podcast with episodes from external API", map[string]interface{}{
+	c.logger.Info("Successfully fetched podcast with episodes from external API", map[string]any{
 		"podcastID":     podcast.UUID,
 		"episodesCount": len(podcast.Episodes),
 	})
@@ -235,7 +235,7 @@ func (c *Client) GetPodcastByID(podcastID string) (*PodcastWithEpisodes, error) 
 
 // GetEpisodeByID fetches a specific episode by ID from the external API
 func (c *Client) GetEpisodeByID(podcastID, episodeID string) (*PodcastEpisode, error) {
-	c.logger.Debug("Fetching episode by ID from external API", map[string]interface{}{
+	c.logger.Debug("Fetching episode by ID from external API", map[string]any{
 		"podcastID": podcastID,
 		"episodeID": episodeID,
 	})
@@ -259,7 +259,7 @@ func (c *Client) GetEpisodeByID(podcastID, episodeID string) (*PodcastEpisode, e
 
 	jsonData, err := json.Marshal(reqBody)
 	if err != nil {
-		c.logger.Error("Failed to marshal GraphQL request", map[string]interface{}{
+		c.logger.Error("Failed to marshal GraphQL request", map[string]any{
 			"error": err.Error(),
 		})
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
@@ -267,7 +267,7 @@ func (c *Client) GetEpisodeByID(podcastID, episodeID string) (*PodcastEpisode, e
 
 	req, err := http.NewRequest("POST", c.baseURL, bytes.NewBuffer(jsonData))
 	if err != nil {
-		c.logger.Error("Failed to create HTTP request", map[string]interface{}{
+		c.logger.Error("Failed to create HTTP request", map[string]any{
 			"error": err.Error(),
 		})
 		return nil, fmt.Errorf("failed to create request: %w", err)
@@ -279,14 +279,14 @@ func (c *Client) GetEpisodeByID(podcastID, episodeID string) (*PodcastEpisode, e
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		c.logger.Error("Failed to execute HTTP request", map[string]interface{}{
+		c.logger.Error("Failed to execute HTTP request", map[string]any{
 			"error": err.Error(),
 		})
 		return nil, fmt.Errorf("failed to execute request: %w", err)
 	}
 	defer func() {
 		if closeErr := resp.Body.Close(); closeErr != nil {
-			c.logger.Error("Failed to close response body", map[string]interface{}{
+			c.logger.Error("Failed to close response body", map[string]any{
 				"error": closeErr.Error(),
 			})
 		}
@@ -294,14 +294,14 @@ func (c *Client) GetEpisodeByID(podcastID, episodeID string) (*PodcastEpisode, e
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		c.logger.Error("Failed to read response body", map[string]interface{}{
+		c.logger.Error("Failed to read response body", map[string]any{
 			"error": err.Error(),
 		})
 		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		c.logger.Error("External API returned non-200 status", map[string]interface{}{
+		c.logger.Error("External API returned non-200 status", map[string]any{
 			"statusCode": resp.StatusCode,
 			"response":   string(body),
 		})
@@ -309,20 +309,20 @@ func (c *Client) GetEpisodeByID(podcastID, episodeID string) (*PodcastEpisode, e
 	}
 
 	type GetEpisodeResponse struct {
-		Data   GetEpisodeByIDData       `json:"data"`
-		Errors []map[string]interface{} `json:"errors,omitempty"`
+		Data   GetEpisodeByIDData `json:"data"`
+		Errors []map[string]any   `json:"errors,omitempty"`
 	}
 
 	graphQLResp, err := utils.DecodeResponse[GetEpisodeResponse](string(body))
 	if err != nil {
-		c.logger.Error("Failed to unmarshal GraphQL response", map[string]interface{}{
+		c.logger.Error("Failed to unmarshal GraphQL response", map[string]any{
 			"error": err.Error(),
 		})
 		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 
 	if len(graphQLResp.Errors) > 0 {
-		c.logger.Error("GraphQL returned errors", map[string]interface{}{
+		c.logger.Error("GraphQL returned errors", map[string]any{
 			"errors": graphQLResp.Errors,
 		})
 		return nil, fmt.Errorf("graphQL errors: %v", graphQLResp.Errors)
@@ -330,7 +330,7 @@ func (c *Client) GetEpisodeByID(podcastID, episodeID string) (*PodcastEpisode, e
 
 	episode := graphQLResp.Data.GetPodcastEpisode
 
-	c.logger.Info("Successfully fetched episode from external API", map[string]interface{}{
+	c.logger.Info("Successfully fetched episode from external API", map[string]any{
 		"podcastID": podcastID,
 		"episodeID": episode.UUID,
 	})

@@ -21,19 +21,19 @@ func isPrivateRoute(path string) bool {
 func PrivateCheckerMiddleware(w http.ResponseWriter, r *http.Request) bool {
 	log := logger.NewMiddlewareLogger("PrivateCheckerMiddleware")
 
-	log.Debug("Checking route privacy", map[string]interface{}{
+	log.Debug("Checking route privacy", map[string]any{
 		"originalPath": r.URL.Path,
 	})
 
 	path := strings.TrimSuffix(r.URL.Path, "/")
-	log.Debug("Path after trimming", map[string]interface{}{
+	log.Debug("Path after trimming", map[string]any{
 		"trimmedPath": path,
 	})
 
 	if path == "/migrations" {
 		migrationHeader := r.Header.Get("x-migration-run")
 		isPrivate := migrationHeader != "true"
-		log.Debug("Migration route check", map[string]interface{}{
+		log.Debug("Migration route check", map[string]any{
 			"header":    migrationHeader,
 			"isPrivate": isPrivate,
 		})
@@ -41,7 +41,7 @@ func PrivateCheckerMiddleware(w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	isPrivate := isPrivateRoute(path)
-	log.Debug("Route privacy determined", map[string]interface{}{
+	log.Debug("Route privacy determined", map[string]any{
 		"path":      path,
 		"isPrivate": isPrivate,
 	})

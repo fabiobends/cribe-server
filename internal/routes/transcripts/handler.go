@@ -24,7 +24,7 @@ func NewTranscriptHandler(service *Service) *TranscriptHandler {
 }
 
 func (h *TranscriptHandler) HandleRequest(w http.ResponseWriter, r *http.Request) {
-	h.log.Debug("Processing transcript request", map[string]interface{}{
+	h.log.Debug("Processing transcript request", map[string]any{
 		"method": r.Method,
 		"path":   r.URL.Path,
 	})
@@ -81,7 +81,7 @@ func (h *TranscriptHandler) handleSSEStream(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	h.log.Info("Starting SSE stream", map[string]interface{}{
+	h.log.Info("Starting SSE stream", map[string]any{
 		"episodeID": episodeID,
 	})
 
@@ -108,11 +108,11 @@ func (h *TranscriptHandler) handleSSEStream(w http.ResponseWriter, r *http.Reque
 	)
 
 	if err != nil {
-		h.log.Error("Stream error", map[string]interface{}{"error": err})
+		h.log.Error("Stream error", map[string]any{"error": err})
 		errorMsg := map[string]string{"error": err.Error()}
 		data, _ := json.Marshal(errorMsg)
 		if _, writeErr := fmt.Fprintf(w, "event: error\ndata: %s\n\n", data); writeErr != nil {
-			h.log.Error("Failed to write error event", map[string]interface{}{"error": writeErr})
+			h.log.Error("Failed to write error event", map[string]any{"error": writeErr})
 		}
 		flusher.Flush()
 		return
@@ -120,7 +120,7 @@ func (h *TranscriptHandler) handleSSEStream(w http.ResponseWriter, r *http.Reque
 
 	// Send complete event
 	if _, err := fmt.Fprintf(w, "event: complete\ndata: {}\n\n"); err != nil {
-		h.log.Error("Failed to write complete event", map[string]interface{}{"error": err})
+		h.log.Error("Failed to write complete event", map[string]any{"error": err})
 		return
 	}
 	flusher.Flush()

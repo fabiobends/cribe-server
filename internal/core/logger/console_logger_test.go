@@ -165,7 +165,7 @@ func TestConsoleLogger_FormatExtra(t *testing.T) {
 			context: &LogContext{
 				EntityType: ServiceEntity,
 				EntityName: "TestService",
-				Extra:      map[string]interface{}{},
+				Extra:      map[string]any{},
 			},
 			expected: "",
 		},
@@ -183,7 +183,7 @@ func TestConsoleLogger_FormatExtra(t *testing.T) {
 			context: &LogContext{
 				EntityType: ServiceEntity,
 				EntityName: "TestService",
-				Extra: map[string]interface{}{
+				Extra: map[string]any{
 					"userId": 123,
 				},
 			},

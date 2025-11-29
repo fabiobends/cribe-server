@@ -52,7 +52,7 @@ func TestContextualLogger_LoggingMethodsWithExtra(t *testing.T) {
 
 	logger := NewContextualLogger(ServiceEntity, "TestService")
 
-	extra := map[string]interface{}{
+	extra := map[string]any{
 		"userId": 123,
 		"action": "test",
 	}
@@ -83,8 +83,8 @@ func TestContextualLogger_BuildContext(t *testing.T) {
 	}
 
 	// Test with extra parameters
-	extra1 := map[string]interface{}{"key1": "value1"}
-	extra2 := map[string]interface{}{"key2": "value2"}
+	extra1 := map[string]any{"key1": "value1"}
+	extra2 := map[string]any{"key2": "value2"}
 
 	contextWithExtra := logger.buildContext(extra1, extra2)
 

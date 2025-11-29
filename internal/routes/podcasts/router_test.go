@@ -30,7 +30,7 @@ func TestPodcasts_IntegrationTests(t *testing.T) {
 			t.Errorf("Expected status code %d, got %d", http.StatusOK, resp.StatusCode)
 		}
 
-		log.Info("GET /podcasts result", map[string]interface{}{
+		log.Info("GET /podcasts result", map[string]any{
 			"statusCode":    resp.StatusCode,
 			"podcastsCount": len(resp.Body),
 		})
@@ -49,7 +49,7 @@ func TestPodcasts_IntegrationTests(t *testing.T) {
 			HandlerFunc: HandleHTTPRequests,
 		})
 
-		log.Info("POST /podcasts/sync result", map[string]interface{}{
+		log.Info("POST /podcasts/sync result", map[string]any{
 			"statusCode":  resp.StatusCode,
 			"totalSynced": resp.Body.TotalSynced,
 			"new":         resp.Body.New,
@@ -80,7 +80,7 @@ func TestPodcasts_IntegrationTests(t *testing.T) {
 				t.Errorf("Expected status code %d for GET after sync, got %d", http.StatusOK, getResp.StatusCode)
 			}
 
-			log.Info("GET /podcasts after sync result", map[string]interface{}{
+			log.Info("GET /podcasts after sync result", map[string]any{
 				"podcastsCount": len(getResp.Body),
 			})
 
@@ -92,7 +92,7 @@ func TestPodcasts_IntegrationTests(t *testing.T) {
 
 	// Test invalid POST path
 	t.Run("POST /podcasts/invalid returns 404", func(t *testing.T) {
-		resp := utils.MustSendTestRequest[map[string]interface{}](utils.TestRequest{
+		resp := utils.MustSendTestRequest[map[string]any](utils.TestRequest{
 			Method:      http.MethodPost,
 			URL:         "/podcasts/invalid",
 			HandlerFunc: HandleHTTPRequests,
@@ -105,7 +105,7 @@ func TestPodcasts_IntegrationTests(t *testing.T) {
 
 	// Test invalid HTTP method
 	t.Run("PUT /podcasts returns 405", func(t *testing.T) {
-		resp := utils.MustSendTestRequest[map[string]interface{}](utils.TestRequest{
+		resp := utils.MustSendTestRequest[map[string]any](utils.TestRequest{
 			Method:      http.MethodPut,
 			URL:         "/podcasts",
 			HandlerFunc: HandleHTTPRequests,

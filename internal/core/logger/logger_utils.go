@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"maps"
 	"runtime"
 	"strings"
 )
@@ -22,43 +23,41 @@ func NewContextualLogger(entityType EntityType, entityName string) *ContextualLo
 }
 
 // Debug logs a debug message with automatic context
-func (cl *ContextualLogger) Debug(message string, extra ...map[string]interface{}) {
+func (cl *ContextualLogger) Debug(message string, extra ...map[string]any) {
 	context := cl.buildContext(extra...)
 	cl.service.Debug(message, context)
 }
 
 // Info logs an info message with automatic context
-func (cl *ContextualLogger) Info(message string, extra ...map[string]interface{}) {
+func (cl *ContextualLogger) Info(message string, extra ...map[string]any) {
 	context := cl.buildContext(extra...)
 	cl.service.Info(message, context)
 }
 
 // Warn logs a warning message with automatic context
-func (cl *ContextualLogger) Warn(message string, extra ...map[string]interface{}) {
+func (cl *ContextualLogger) Warn(message string, extra ...map[string]any) {
 	context := cl.buildContext(extra...)
 	cl.service.Warn(message, context)
 }
 
 // Error logs an error message with automatic context
-func (cl *ContextualLogger) Error(message string, extra ...map[string]interface{}) {
+func (cl *ContextualLogger) Error(message string, extra ...map[string]any) {
 	context := cl.buildContext(extra...)
 	cl.service.Error(message, context)
 }
 
 // buildContext creates a LogContext with automatic function name detection
-func (cl *ContextualLogger) buildContext(extra ...map[string]interface{}) *LogContext {
+func (cl *ContextualLogger) buildContext(extra ...map[string]any) *LogContext {
 	context := &LogContext{
 		EntityType:   cl.entityType,
 		EntityName:   cl.entityName,
 		FunctionName: cl.getFunctionName(),
-		Extra:        make(map[string]interface{}),
+		Extra:        make(map[string]any),
 	}
 
 	// Merge extra parameters
 	for _, extraMap := range extra {
-		for k, v := range extraMap {
-			context.Extra[k] = v
-		}
+		maps.Copy(context.Extra, extraMap)
 	}
 
 	return context

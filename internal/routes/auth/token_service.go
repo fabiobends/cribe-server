@@ -45,7 +45,7 @@ func NewTokenServiceReady() TokenService {
 	refreshTokenExpiration := os.Getenv("JWT_REFRESH_TOKEN_EXPIRATION_TIME_IN_DAYS")
 	accessTokenExpirationInt, err := strconv.Atoi(accessTokenExpiration)
 	if err != nil {
-		log.Error("Error converting access token expiration to int", map[string]interface{}{
+		log.Error("Error converting access token expiration to int", map[string]any{
 			"error": err.Error(),
 			"value": accessTokenExpiration,
 		})
@@ -53,7 +53,7 @@ func NewTokenServiceReady() TokenService {
 	}
 	refreshTokenExpirationInt, err := strconv.Atoi(refreshTokenExpiration)
 	if err != nil {
-		log.Error("Error converting refresh token expiration to int", map[string]interface{}{
+		log.Error("Error converting refresh token expiration to int", map[string]any{
 			"error": err.Error(),
 			"value": refreshTokenExpiration,
 		})

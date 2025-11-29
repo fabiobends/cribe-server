@@ -24,14 +24,14 @@ func NewClient() *Client {
 	baseURL := os.Getenv("LLM_API_BASE_URL")
 
 	if baseURL == "" || apiKey == "" {
-		log.Error("Missing required environment variables for LLM client", map[string]interface{}{
+		log.Error("Missing required environment variables for LLM client", map[string]any{
 			"has_base_url": baseURL != "",
 			"has_api_key":  apiKey != "",
 		})
 		return nil
 	}
 
-	log.Info("LLM client initialized", map[string]interface{}{
+	log.Info("LLM client initialized", map[string]any{
 		"apiKey":  strings.Split(apiKey, "")[0] + "...",
 		"baseURL": baseURL,
 	})
@@ -82,7 +82,7 @@ Who is speaker %d? Return only the person's full name (e.g., "John Smith" or "Ja
 
 	jsonBody, err := utils.EncodeToJSON(reqBody)
 	if err != nil {
-		c.log.Error("Failed to marshal LLM request", map[string]interface{}{
+		c.log.Error("Failed to marshal LLM request", map[string]any{
 			"error": err.Error(),
 		})
 		return "", fmt.Errorf("failed to marshal request: %w", err)
@@ -90,7 +90,7 @@ Who is speaker %d? Return only the person's full name (e.g., "John Smith" or "Ja
 
 	req, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/chat/completions", bytes.NewReader(jsonBody))
 	if err != nil {
-		c.log.Error("Failed to create LLM request", map[string]interface{}{
+		c.log.Error("Failed to create LLM request", map[string]any{
 			"error": err.Error(),
 		})
 		return "", fmt.Errorf("failed to create request: %w", err)
@@ -99,7 +99,7 @@ Who is speaker %d? Return only the person's full name (e.g., "John Smith" or "Ja
 	req.Header.Set("Authorization", "Bearer "+c.apiKey)
 	req.Header.Set("Content-Type", "application/json")
 
-	c.log.Info("Inferring speaker name", map[string]interface{}{
+	c.log.Info("Inferring speaker name", map[string]any{
 		"speakerIndex": speakerIndex,
 		"chunksCount":  len(transcriptChunks),
 	})
@@ -107,14 +107,14 @@ Who is speaker %d? Return only the person's full name (e.g., "John Smith" or "Ja
 	// Send request
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		c.log.Error("Failed to send inference request", map[string]interface{}{
+		c.log.Error("Failed to send inference request", map[string]any{
 			"error": err.Error(),
 		})
 		return "", fmt.Errorf("failed to send request: %w", err)
 	}
 	defer func() {
 		if closeErr := resp.Body.Close(); closeErr != nil {
-			c.log.Error("Failed to close response body", map[string]interface{}{
+			c.log.Error("Failed to close response body", map[string]any{
 				"error": closeErr.Error(),
 			})
 		}
@@ -122,7 +122,7 @@ Who is speaker %d? Return only the person's full name (e.g., "John Smith" or "Ja
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		c.log.Error("LLM API returned error", map[string]interface{}{
+		c.log.Error("LLM API returned error", map[string]any{
 			"statusCode": resp.StatusCode,
 			"response":   string(body),
 		})
@@ -132,7 +132,7 @@ Who is speaker %d? Return only the person's full name (e.g., "John Smith" or "Ja
 	// Parse response
 	var chatResp ChatCompletionResponse
 	if err := json.NewDecoder(resp.Body).Decode(&chatResp); err != nil {
-		c.log.Error("Failed to decode LLM response", map[string]interface{}{
+		c.log.Error("Failed to decode LLM response", map[string]any{
 			"error": err.Error(),
 		})
 		return "", fmt.Errorf("failed to decode response: %w", err)
@@ -145,7 +145,7 @@ Who is speaker %d? Return only the person's full name (e.g., "John Smith" or "Ja
 
 	speakerName := chatResp.Choices[0].Message.Content
 
-	c.log.Info("Speaker name inferred", map[string]interface{}{
+	c.log.Info("Speaker name inferred", map[string]any{
 		"speakerIndex": speakerIndex,
 		"speakerName":  speakerName,
 		"tokensUsed":   chatResp.Usage.TotalTokens,

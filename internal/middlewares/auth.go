@@ -33,7 +33,7 @@ func AuthMiddleware(w http.ResponseWriter, r *http.Request, tokenService auth.To
 	// Extract the token from the Bearer scheme
 	parts := strings.Split(authHeader, " ")
 	if len(parts) != 2 || parts[0] != "Bearer" {
-		log.Warn("Invalid authorization header format", map[string]interface{}{
+		log.Warn("Invalid authorization header format", map[string]any{
 			"header": authHeader,
 		})
 		return nil, &errors.ErrorResponse{
@@ -48,7 +48,7 @@ func AuthMiddleware(w http.ResponseWriter, r *http.Request, tokenService auth.To
 	// Validate the token
 	userToken, err := tokenService.ValidateToken(token)
 	if err != nil {
-		log.Warn("Token validation failed", map[string]interface{}{
+		log.Warn("Token validation failed", map[string]any{
 			"error": err.Error(),
 		})
 		return nil, &errors.ErrorResponse{
@@ -57,7 +57,7 @@ func AuthMiddleware(w http.ResponseWriter, r *http.Request, tokenService auth.To
 		}
 	}
 
-	log.Info("Token validation successful", map[string]interface{}{
+	log.Info("Token validation successful", map[string]any{
 		"userID": userToken.UserID,
 	})
 

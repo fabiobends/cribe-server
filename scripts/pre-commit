@@ -40,6 +40,17 @@ for file in $STAGED_FILES; do
     git add "$file"
 done
 
+echo "Running modernize analyzer..."
+# Run modernize on staged packages to enforce modern Go patterns
+PACKAGES=$(echo "$STAGED_FILES" | sed 's/\/[^/]*$//' | sort -u)
+for pkg in $PACKAGES; do
+    if ! go run golang.org/x/tools/gopls/internal/analysis/modernize/cmd/modernize@latest -fix -test "./$pkg/..." > /dev/null 2>&1; then
+        echo "⚠️  Modernize found issues in $pkg"
+        echo "Run: go run golang.org/x/tools/gopls/internal/analysis/modernize/cmd/modernize@latest -fix -test ./$pkg/..."
+        exit 1
+    fi
+done
+
 # Run linter on the packages containing the staged files
 PACKAGES=$(echo "$STAGED_FILES" | sed 's/\/[^/]*$//' | sort -u)
 for pkg in $PACKAGES; do
