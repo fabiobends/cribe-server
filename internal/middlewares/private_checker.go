@@ -14,6 +14,10 @@ var privateRoutes = map[string]bool{
 }
 
 func isPrivateRoute(path string) bool {
+	// Extract first path segment
+	if idx := strings.Index(path[1:], "/"); idx != -1 {
+		path = path[:idx+1]
+	}
 	return privateRoutes[path]
 }
 
