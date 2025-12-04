@@ -285,7 +285,6 @@ func TestStreamAudioURL_ErrorPaths(t *testing.T) {
 			log:        logger.NewServiceLogger("TestTranscriptionClient"),
 		}
 
-		expectedErr := "callback error"
 		err := client.StreamAudioURL(
 			context.Background(),
 			"https://example.com/audio.mp3",
@@ -299,8 +298,5 @@ func TestStreamAudioURL_ErrorPaths(t *testing.T) {
 			t.Error("Expected callback error, got nil")
 		}
 
-		if err.Error() != expectedErr && !json.Valid([]byte(err.Error())) {
-			t.Logf("Got error: %v", err)
-		}
 	})
 }

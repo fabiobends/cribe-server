@@ -202,6 +202,10 @@ func (m *MockFailingTranscriptionClient) StreamAudioURL(ctx context.Context, aud
 	return fmt.Errorf("transcription API error")
 }
 
+func (m *MockFailingTranscriptionClient) StreamAudioURLWebSocket(ctx context.Context, audioURL string, opts transcription.StreamOptions, callback transcription.StreamCallback) error {
+	return fmt.Errorf("transcription API error")
+}
+
 func TestTranscriptService_StreamFromTranscriptionAPI_Error(t *testing.T) {
 	t.Run("should handle transcription API error and update status to failed", func(t *testing.T) {
 		transcriptionClient := &MockFailingTranscriptionClient{}

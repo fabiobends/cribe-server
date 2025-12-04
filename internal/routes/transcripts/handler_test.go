@@ -51,6 +51,11 @@ func (m *MockTranscriptionClient) StreamAudioURL(ctx context.Context, audioURL s
 	return nil
 }
 
+func (m *MockTranscriptionClient) StreamAudioURLWebSocket(ctx context.Context, audioURL string, opts transcription.StreamOptions, callback transcription.StreamCallback) error {
+	// Use the same mock implementation as StreamAudioURL
+	return m.StreamAudioURL(ctx, audioURL, opts, callback)
+}
+
 type MockLLMClient struct{}
 
 func (m *MockLLMClient) InferSpeakerName(ctx context.Context, episodeDescription string, speakerIndex int, transcriptChunks []string) (string, error) {

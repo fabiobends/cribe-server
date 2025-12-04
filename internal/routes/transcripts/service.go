@@ -13,6 +13,7 @@ import (
 // TranscriptionClientInterface defines the contract for transcription clients
 type TranscriptionClientInterface interface {
 	StreamAudioURL(ctx context.Context, audioURL string, opts transcription.StreamOptions, callback transcription.StreamCallback) error
+	StreamAudioURLWebSocket(ctx context.Context, audioURL string, opts transcription.StreamOptions, callback transcription.StreamCallback) error
 }
 
 // LLMClientInterface defines the contract for LLM clients
@@ -161,56 +162,72 @@ func (s *Service) streamFromTranscriptionAPI(ctx context.Context, transcriptID i
 		speakerChunks = make(map[int][]string)
 	)
 
-	// Stream from transcription API
-	err := s.transcriptionClient.StreamAudioURL(ctx, audioURL, transcription.StreamOptions{
+	// Use background context for WebSocket so it continues even if client disconnects
+	// We'll monitor the original ctx to stop sending SSE events when client disconnects
+	bgCtx := context.Background()
+
+	// Stream from transcription API using WebSocket for real-time results
+	err := s.transcriptionClient.StreamAudioURLWebSocket(bgCtx, audioURL, transcription.StreamOptions{
 		Model:      "nova-3",
 		Language:   "en",
 		Diarize:    true,
 		Punctuate:  true,
 		Utterances: false,
 	}, func(response *transcription.StreamResponse) error {
-		// Skip responses without alternatives (empty chunks)
-		if len(response.Results.Channels) == 0 || len(response.Results.Channels[0].Alternatives) == 0 {
-			return nil
-		}
-
-		alt := response.Results.Channels[0].Alternatives[0]
-
-		for _, word := range alt.Words {
-			chunk := Chunk{
-				Position:     position,
-				SpeakerIndex: word.Speaker,
-				Start:        word.Start,
-				End:          word.End,
-				Text:         word.PunctuatedWord,
+			// WebSocket API uses singular "channel" field
+			if len(response.Channel.Alternatives) == 0 {
+				return nil
 			}
 
-			mu.Lock()
-			chunks = append(chunks, chunk)
-			position++
+			words := response.Channel.Alternatives[0].Words
+			if len(words) == 0 {
+				return nil
+			}
 
-			speakerChunks[word.Speaker] = append(speakerChunks[word.Speaker], word.PunctuatedWord)
+			for _, word := range words {
+				chunk := Chunk{
+					Position:     position,
+					SpeakerIndex: word.Speaker,
+					Start:        word.Start,
+					End:          word.End,
+					Text:         word.PunctuatedWord,
+				}
 
-			if !speakersSeen[word.Speaker] {
-				speakersSeen[word.Speaker] = true
+				mu.Lock()
+				chunks = append(chunks, chunk)
+				position++
 
-				if err := speakerCB(&Speaker{
-					Index: word.Speaker,
-					Name:  fmt.Sprintf("Speaker %d", word.Speaker),
-				}); err != nil {
-					mu.Unlock()
-					return err
+				speakerChunks[word.Speaker] = append(speakerChunks[word.Speaker], word.PunctuatedWord)
+
+				if !speakersSeen[word.Speaker] {
+					speakersSeen[word.Speaker] = true
+
+					// Only send SSE event if client is still connected
+					if ctx.Err() == nil {
+						if err := speakerCB(&Speaker{
+							Index: word.Speaker,
+							Name:  fmt.Sprintf("Speaker %d", word.Speaker),
+						}); err != nil {
+							s.log.Info("Client disconnected, continuing transcription", map[string]any{
+								"error": err.Error(),
+							})
+						}
+					}
+				}
+				mu.Unlock()
+
+				// Only send SSE event if client is still connected
+				if ctx.Err() == nil {
+					if err := chunkCB(&chunk); err != nil {
+						s.log.Info("Client disconnected, continuing transcription", map[string]any{
+							"error": err.Error(),
+						})
+					}
 				}
 			}
-			mu.Unlock()
 
-			if err := chunkCB(&chunk); err != nil {
-				return err
-			}
-		}
-
-		return nil
-	})
+			return nil
+		})
 
 	if err != nil {
 		_ = s.repo.UpdateTranscriptStatus(transcriptID, string(TranscriptStatusFailed), err.Error())
@@ -220,13 +237,26 @@ func (s *Service) streamFromTranscriptionAPI(ctx context.Context, transcriptID i
 		return fmt.Errorf("transcription streaming error: %w", err)
 	}
 
-	s.log.Info("Transcription completed, saving to DB", map[string]any{
-		"totalChunks": len(chunks),
+	// Streaming completed successfully, save to DB in background
+	go s.saveTranscriptInBackground(transcriptID, chunks, speakerChunks, episodeDesc)
+
+	return nil
+}
+
+// saveTranscriptInBackground saves chunks and infers speaker names in the background
+func (s *Service) saveTranscriptInBackground(transcriptID int, chunks []Chunk, speakerChunks map[int][]string, episodeDesc string) {
+	s.log.Info("Saving transcript to DB in background", map[string]any{
+		"transcriptID": transcriptID,
+		"totalChunks":  len(chunks),
 	})
 
 	// Save chunks to DB
 	if err := s.repo.SaveChunks(transcriptID, chunks); err != nil {
-		return fmt.Errorf("failed to save chunks: %w", err)
+		s.log.Error("Failed to save chunks", map[string]any{
+			"error": err.Error(),
+		})
+		_ = s.repo.UpdateTranscriptStatus(transcriptID, string(TranscriptStatusFailed), err.Error())
+		return
 	}
 
 	// Infer speaker names in parallel
@@ -236,7 +266,7 @@ func (s *Service) streamFromTranscriptionAPI(ctx context.Context, transcriptID i
 		go func(idx int, words []string) {
 			defer wg.Done()
 
-			// Use background context to prevent cancellation when client disconnects
+			// Use background context to prevent cancellation
 			speakerName, err := s.llmClient.InferSpeakerName(context.Background(), episodeDesc, idx, words)
 			if err != nil {
 				s.log.Error("Failed to infer speaker name", map[string]any{
@@ -249,36 +279,23 @@ func (s *Service) streamFromTranscriptionAPI(ctx context.Context, transcriptID i
 			// Update database
 			if err := s.repo.UpsertSpeaker(transcriptID, idx, speakerName); err != nil {
 				s.log.Error("Failed to save speaker", map[string]any{
-					"error": err.Error(),
+					"error":        err.Error(),
+					"speakerIndex": idx,
 				})
-				return
 			}
-
-			// Send updated speaker name to client (will fail gracefully if disconnected)
-			if err := speakerCB(&Speaker{
-				Index: idx,
-				Name:  speakerName,
-			}); err != nil {
-				s.log.Error("Failed to send speaker update", map[string]any{
-					"error": err.Error(),
-				})
-				return
-			}
-
-			s.log.Info("Speaker name inferred and updated", map[string]any{
-				"speakerIndex": idx,
-				"speakerName":  speakerName,
-			})
 		}(speakerIndex, speakerWords)
 	}
-
-	// Wait for all speaker inferences to complete
 	wg.Wait()
 
-	// Mark as complete after all speaker inference
+	// Update transcript status
 	if err := s.repo.UpdateTranscriptStatus(transcriptID, string(TranscriptStatusComplete), ""); err != nil {
-		return err
+		s.log.Error("Failed to update transcript status", map[string]any{
+			"error": err.Error(),
+		})
+		return
 	}
 
-	return nil
+	s.log.Info("Transcript saved successfully", map[string]any{
+		"transcriptID": transcriptID,
+	})
 }

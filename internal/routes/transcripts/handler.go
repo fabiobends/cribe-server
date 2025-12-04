@@ -1,6 +1,7 @@
 package transcripts
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -85,27 +86,80 @@ func (h *TranscriptHandler) handleSSEStream(w http.ResponseWriter, r *http.Reque
 		"episodeID": episodeID,
 	})
 
-	// Stream transcript
-	err = h.service.StreamTranscript(r.Context(), episodeID,
+	// Use a buffered channel and a dedicated writer goroutine for SSE
+	// to avoid blocking the transcription callbacks when the HTTP client
+	// is slow to read. If a write fails, cancel the context so the
+	// transcription stream can stop promptly.
+	streamCtx, cancel := context.WithCancel(r.Context())
+	defer cancel()
+
+	eventCh := make(chan string, 512)
+	writeErrCh := make(chan error, 1)
+
+	// Writer goroutine: consumes formatted SSE strings and writes them
+	// to the ResponseWriter. On error it reports via writeErrCh and
+	// cancels the context.
+	go func() {
+		for {
+			select {
+			case <-streamCtx.Done():
+				return
+			case s, ok := <-eventCh:
+				if !ok {
+					return
+				}
+				if _, err := fmt.Fprint(w, s); err != nil {
+					// Report the write error and cancel the stream.
+					select {
+					case writeErrCh <- err:
+					default:
+					}
+					cancel()
+					return
+				}
+				flusher.Flush()
+			}
+		}
+	}()
+
+	// Helper to enqueue SSE event payloads without blocking indefinitely.
+	enqueue := func(payload string) error {
+		select {
+		case eventCh <- payload:
+			return nil
+		case <-streamCtx.Done():
+			return streamCtx.Err()
+		}
+	}
+
+	// Stream transcript: push events to the channel instead of writing
+	// directly to the response.
+	err = h.service.StreamTranscript(streamCtx, episodeID,
 		// Chunk callback
 		func(chunk *Chunk) error {
 			data, _ := json.Marshal(chunk)
-			if _, err := fmt.Fprintf(w, "event: chunk\ndata: %s\n\n", data); err != nil {
-				return err
-			}
-			flusher.Flush()
-			return nil
+			payload := fmt.Sprintf("event: chunk\ndata: %s\n\n", data)
+			return enqueue(payload)
 		},
 		// Speaker callback
 		func(speaker *Speaker) error {
 			data, _ := json.Marshal(speaker)
-			if _, err := fmt.Fprintf(w, "event: speaker\ndata: %s\n\n", data); err != nil {
-				return err
-			}
-			flusher.Flush()
-			return nil
+			payload := fmt.Sprintf("event: speaker\ndata: %s\n\n", data)
+			return enqueue(payload)
 		},
 	)
+
+	// Close event channel to allow writer goroutine to exit if it's idle.
+	close(eventCh)
+
+	// If writer reported an error, prefer that as the root cause.
+	select {
+	case wErr := <-writeErrCh:
+		if wErr != nil {
+			err = wErr
+		}
+	default:
+	}
 
 	if err != nil {
 		h.log.Error("Stream error", map[string]any{"error": err})
