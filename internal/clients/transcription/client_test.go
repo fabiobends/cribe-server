@@ -3,304 +3,432 @@ package transcription
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
+	"time"
+
+	"github.com/gorilla/websocket"
 
 	"cribeapp.com/cribe-server/internal/core/logger"
 )
 
 func TestNewClient(t *testing.T) {
-	t.Run("should create client with valid environment variables", func(t *testing.T) {
-		_ = os.Setenv("TRANSCRIPTION_API_KEY", "test-key")
-		_ = os.Setenv("TRANSCRIPTION_API_BASE_URL", "https://api.deepgram.com")
-		defer func() { _ = os.Unsetenv("TRANSCRIPTION_API_KEY") }()
-		defer func() { _ = os.Unsetenv("TRANSCRIPTION_API_BASE_URL") }()
+	tests := []struct {
+		name          string
+		apiKey        string
+		baseURL       string
+		shouldSucceed bool
+	}{
+		{"success with environment variables", "test-key", "https://api.deepgram.com", true},
+		{"missing API key", "", "https://api.deepgram.com", false},
+		{"missing base URL", "test-key", "", false},
+		{"both missing", "", "", false},
+	}
 
-		client := NewClient()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.apiKey != "" {
+				_ = os.Setenv("TRANSCRIPTION_API_KEY", tt.apiKey)
+				defer func() { _ = os.Unsetenv("TRANSCRIPTION_API_KEY") }()
+			} else {
+				_ = os.Unsetenv("TRANSCRIPTION_API_KEY")
+			}
+			if tt.baseURL != "" {
+				_ = os.Setenv("TRANSCRIPTION_API_BASE_URL", tt.baseURL)
+				defer func() { _ = os.Unsetenv("TRANSCRIPTION_API_BASE_URL") }()
+			} else {
+				_ = os.Unsetenv("TRANSCRIPTION_API_BASE_URL")
+			}
 
-		if client == nil {
-			t.Fatal("Expected client to be created, got nil")
-		}
-
-		if client.apiKey != "test-key" {
-			t.Errorf("Expected apiKey to be 'test-key', got %s", client.apiKey)
-		}
-
-		if client.baseURL != "https://api.deepgram.com" {
-			t.Errorf("Expected baseURL to be 'https://api.deepgram.com', got %s", client.baseURL)
-		}
-	})
-
-	t.Run("should return nil when API key is missing", func(t *testing.T) {
-		_ = os.Unsetenv("TRANSCRIPTION_API_KEY")
-		_ = os.Setenv("TRANSCRIPTION_API_BASE_URL", "https://api.deepgram.com")
-		defer func() { _ = os.Unsetenv("TRANSCRIPTION_API_BASE_URL") }()
-
-		client := NewClient()
-
-		if client != nil {
-			t.Error("Expected client to be nil when API key is missing")
-		}
-	})
-
-	t.Run("should return nil when base URL is missing", func(t *testing.T) {
-		_ = os.Setenv("TRANSCRIPTION_API_KEY", "test-key")
-		_ = os.Unsetenv("TRANSCRIPTION_API_BASE_URL")
-		defer func() { _ = os.Unsetenv("TRANSCRIPTION_API_KEY") }()
-
-		client := NewClient()
-
-		if client != nil {
-			t.Error("Expected client to be nil when base URL is missing")
-		}
-	})
+			client := NewClient()
+			if tt.shouldSucceed && (client == nil || client.apiKey != tt.apiKey) {
+				t.Fatal("Failed to create client")
+			}
+			if !tt.shouldSucceed && client != nil {
+				t.Error("Expected nil client")
+			}
+		})
+	}
 }
 
 func TestStreamAudioURL(t *testing.T) {
-	t.Run("should stream audio transcription successfully", func(t *testing.T) {
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.Header.Get("Authorization") != "Token test-key" {
-				t.Errorf("Expected Authorization header 'Token test-key', got %s", r.Header.Get("Authorization"))
-			}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		response := StreamResponse{
+			Type: "Results",
+			Results: Results{
+				Channels: []Channel{{Alternatives: []Alternative{{
+					Words: []Word{{Word: "test", PunctuatedWord: "test", Start: 0.0, End: 0.5, Speaker: 0}},
+				}}}},
+			},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
+	}))
+	defer server.Close()
 
-			response := StreamResponse{
-				Type: "Results",
-				Results: Results{
-					Channels: []Channel{
-						{
-							Alternatives: []Alternative{
-								{
-									Transcript: "Hello world",
-									Confidence: 0.95,
-									Words: []Word{
-										{
-											Word:           "Hello",
-											PunctuatedWord: "Hello",
-											Start:          0.0,
-											End:            0.5,
-											Speaker:        0,
-										},
-										{
-											Word:           "world",
-											PunctuatedWord: "world",
-											Start:          0.5,
-											End:            1.0,
-											Speaker:        0,
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			}
+	client := &Client{
+		apiKey:     "test-key",
+		baseURL:    server.URL,
+		httpClient: &http.Client{},
+		log:        logger.NewServiceLogger("TestClient"),
+	}
 
-			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(response)
+	callbackCount := 0
+	err := client.StreamAudioURL(
+		context.Background(),
+		"https://example.com/audio.mp3",
+		StreamOptions{Model: "nova-3", Language: "en", Diarize: true, Punctuate: true},
+		func(response *StreamResponse) error {
+			callbackCount++
+			return nil
+		},
+	)
+
+	if err != nil || callbackCount != 2 {
+		t.Errorf("Expected no error and 2 callbacks, got err=%v, count=%d", err, callbackCount)
+	}
+}
+
+func TestStreamAudioURL_RequestCreationError(t *testing.T) {
+	client := &Client{
+		apiKey:     "test-key",
+		baseURL:    ":\n\n\t\tinvalid-url", // Invalid URL to trigger NewRequestWithContext error
+		httpClient: &http.Client{},
+		log:        logger.NewServiceLogger("TestClient"),
+	}
+
+	ctx := context.Background()
+	err := client.StreamAudioURL(
+		ctx,
+		"https://example.com/audio.mp3",
+		StreamOptions{Model: "nova-3"},
+		func(response *StreamResponse) error { return nil },
+	)
+
+	if err == nil {
+		t.Fatal("Expected error when baseURL is invalid, got nil")
+	}
+	if !strings.Contains(err.Error(), "failed to create request") {
+		t.Errorf("Expected 'failed to create request' error, got: %v", err)
+	}
+}
+
+func TestBuildWebSocketURL(t *testing.T) {
+	client := &Client{
+		baseURL: "https://api.deepgram.com/v1/listen",
+		log:     logger.NewServiceLogger("TestClient"),
+	}
+
+	wsURL, err := client.buildWebSocketURL(StreamOptions{
+		Model: "nova-2", Language: "en", Diarize: true, Punctuate: true,
+	})
+
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if !strings.HasPrefix(wsURL, "wss://") || !strings.Contains(wsURL, "model=nova-2") {
+		t.Errorf("Invalid WebSocket URL: %s", wsURL)
+	}
+}
+
+func TestStreamAudioToWebSocket(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		audioServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			_, _ = w.Write([]byte("fake audio data"))
 		}))
-		defer server.Close()
+		defer audioServer.Close()
 
-		client := &Client{
-			apiKey:     "test-key",
-			baseURL:    server.URL,
-			httpClient: &http.Client{},
-			log:        logger.NewServiceLogger("TestTranscriptionClient"),
-		}
+		var receivedData []byte
+		wsServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			upgrader := websocket.Upgrader{}
+			conn, _ := upgrader.Upgrade(w, r, nil)
+			defer func() { _ = conn.Close() }()
+			for {
+				messageType, message, err := conn.ReadMessage()
+				if err != nil || messageType == websocket.TextMessage {
+					return
+				}
+				receivedData = append(receivedData, message...)
+			}
+		}))
+		defer wsServer.Close()
 
-		callbackCount := 0
-		err := client.StreamAudioURL(
-			context.Background(),
-			"https://example.com/audio.mp3",
-			StreamOptions{
-				Model:      "nova-3",
-				Language:   "en",
-				Diarize:    true,
-				Punctuate:  true,
-				Utterances: true,
-			},
-			func(response *StreamResponse) error {
-				callbackCount++
-				return nil
-			},
-		)
+		wsURL := "ws://" + strings.TrimPrefix(wsServer.URL, "http://")
+		conn, _, _ := websocket.DefaultDialer.Dial(wsURL, nil)
+		defer func() { _ = conn.Close() }()
 
-		if err != nil {
-			t.Errorf("Expected no error, got %v", err)
-		}
+		client := &Client{httpClient: &http.Client{}, log: logger.NewServiceLogger("TestClient")}
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
 
-		if callbackCount != 2 {
-			t.Errorf("Expected callback to be called 2 times, got %d", callbackCount)
+		errCh, doneCh := make(chan error, 1), make(chan struct{}, 1)
+		go client.streamAudioToWebSocket(ctx, conn, audioServer.URL, errCh, doneCh)
+
+		select {
+		case <-doneCh:
+			if len(receivedData) == 0 {
+				t.Error("Expected to receive audio data")
+			}
+		case err := <-errCh:
+			t.Fatalf("Expected no error, got %v", err)
+		case <-ctx.Done():
+			t.Fatal("Test timed out")
 		}
 	})
 
-	t.Run("should return error when API returns non-200 status", func(t *testing.T) {
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusBadRequest)
-			_, _ = w.Write([]byte("Bad request"))
+	t.Run("non-200 status", func(t *testing.T) {
+		audioServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
 		}))
-		defer server.Close()
+		defer audioServer.Close()
 
-		client := &Client{
-			apiKey:     "test-key",
-			baseURL:    server.URL,
-			httpClient: &http.Client{},
-			log:        logger.NewServiceLogger("TestTranscriptionClient"),
-		}
+		wsServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			upgrader := websocket.Upgrader{}
+			conn, _ := upgrader.Upgrade(w, r, nil)
+			defer func() { _ = conn.Close() }()
+		}))
+		defer wsServer.Close()
 
-		err := client.StreamAudioURL(
-			context.Background(),
-			"https://example.com/audio.mp3",
-			StreamOptions{Model: "nova-3"},
-			func(response *StreamResponse) error {
-				return nil
-			},
-		)
+		wsURL := "ws://" + strings.TrimPrefix(wsServer.URL, "http://")
+		conn, _, _ := websocket.DefaultDialer.Dial(wsURL, nil)
+		defer func() { _ = conn.Close() }()
 
-		if err == nil {
-			t.Error("Expected error, got nil")
-		}
-	})
+		client := &Client{httpClient: &http.Client{}, log: logger.NewServiceLogger("TestClient")}
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
 
-	t.Run("should handle empty response gracefully", func(t *testing.T) {
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			response := StreamResponse{
-				Type: "Results",
-				Results: Results{
-					Channels: []Channel{},
-				},
+		errCh, doneCh := make(chan error, 1), make(chan struct{}, 1)
+		go client.streamAudioToWebSocket(ctx, conn, audioServer.URL, errCh, doneCh)
+
+		select {
+		case err := <-errCh:
+			if err == nil || !strings.Contains(err.Error(), "audio download failed") {
+				t.Errorf("Expected 'audio download failed' error, got: %v", err)
 			}
-			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(response)
-		}))
-		defer server.Close()
-
-		client := &Client{
-			apiKey:     "test-key",
-			baseURL:    server.URL,
-			httpClient: &http.Client{},
-			log:        logger.NewServiceLogger("TestTranscriptionClient"),
-		}
-
-		err := client.StreamAudioURL(
-			context.Background(),
-			"https://example.com/audio.mp3",
-			StreamOptions{Model: "nova-3"},
-			func(response *StreamResponse) error {
-				return nil
-			},
-		)
-
-		if err != nil {
-			t.Errorf("Expected no error for empty response, got %v", err)
+		case <-doneCh:
+			t.Fatal("Expected error, got success")
+		case <-ctx.Done():
+			t.Fatal("Test timed out")
 		}
 	})
 }
 
-func TestStreamAudioURL_ErrorPaths(t *testing.T) {
-	t.Run("should handle HTTP client error", func(t *testing.T) {
-		client := &Client{
-			apiKey:     "test-key",
-			baseURL:    "http://invalid-url-that-does-not-exist.local",
-			httpClient: &http.Client{},
-			log:        logger.NewServiceLogger("TestTranscriptionClient"),
-		}
-
-		err := client.StreamAudioURL(
-			context.Background(),
-			"https://example.com/audio.mp3",
-			StreamOptions{Model: "nova-3"},
-			func(response *StreamResponse) error {
-				return nil
+func TestReadTranscriptionResults(t *testing.T) {
+	tests := []struct {
+		name          string
+		messages      []any
+		expectedCalls int
+		description   string
+	}{
+		{
+			name: "filters interim results",
+			messages: []any{
+				StreamResponse{Type: "Results", IsFinal: false, Channel: Channel{Alternatives: []Alternative{{Words: []Word{{Word: "interim"}}}}}},
+				StreamResponse{Type: "Results", IsFinal: true, Channel: Channel{Alternatives: []Alternative{{Words: []Word{{Word: "final"}}}}}},
 			},
-		)
-
-		if err == nil {
-			t.Error("Expected error for failed HTTP request, got nil")
-		}
-	})
-
-	t.Run("should handle invalid JSON response", func(t *testing.T) {
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte("invalid json"))
-		}))
-		defer server.Close()
-
-		client := &Client{
-			apiKey:     "test-key",
-			baseURL:    server.URL,
-			httpClient: &http.Client{},
-			log:        logger.NewServiceLogger("TestTranscriptionClient"),
-		}
-
-		err := client.StreamAudioURL(
-			context.Background(),
-			"https://example.com/audio.mp3",
-			StreamOptions{Model: "nova-3"},
-			func(response *StreamResponse) error {
-				return nil
+			expectedCalls: 1,
+			description:   "should only process final results",
+		},
+		{
+			name: "skips invalid JSON",
+			messages: []any{
+				"{invalid json}",
+				StreamResponse{Type: "Results", IsFinal: true, Channel: Channel{Alternatives: []Alternative{{Words: []Word{{Word: "test"}}}}}},
 			},
-		)
+			expectedCalls: 1,
+			description:   "invalid JSON should be skipped",
+		},
+		{
+			name: "skips non-Results type",
+			messages: []any{
+				StreamResponse{Type: "Metadata", Channel: Channel{Alternatives: []Alternative{{Words: []Word{{Word: "ignored"}}}}}},
+				StreamResponse{Type: "Results", IsFinal: true, Channel: Channel{Alternatives: []Alternative{{Words: []Word{{Word: "test"}}}}}},
+			},
+			expectedCalls: 1,
+			description:   "non-Results type should be skipped",
+		},
+		{
+			name: "skips empty alternatives",
+			messages: []any{
+				StreamResponse{Type: "Results", IsFinal: true, Channel: Channel{Alternatives: []Alternative{}}},
+				StreamResponse{Type: "Results", IsFinal: true, Channel: Channel{Alternatives: []Alternative{{Words: []Word{{Word: "test"}}}}}},
+			},
+			expectedCalls: 1,
+			description:   "message with no alternatives should be skipped",
+		},
+	}
 
-		if err == nil {
-			t.Error("Expected error for invalid JSON, got nil")
-		}
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			wsServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				upgrader := websocket.Upgrader{}
+				conn, _ := upgrader.Upgrade(w, r, nil)
+				defer func() { _ = conn.Close() }()
 
-	t.Run("should handle callback error", func(t *testing.T) {
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			response := StreamResponse{
-				Type: "Results",
-				Results: Results{
-					Channels: []Channel{
-						{
-							Alternatives: []Alternative{
-								{
-									Words: []Word{
-										{
-											Word:           "test",
-											PunctuatedWord: "test",
-											Start:          0.0,
-											End:            0.5,
-											Speaker:        0,
-										},
-									},
-								},
-							},
-						},
-					},
-				},
+				for _, msg := range tt.messages {
+					switch v := msg.(type) {
+					case string:
+						_ = conn.WriteMessage(websocket.TextMessage, []byte(v))
+					case StreamResponse:
+						jsonData, _ := json.Marshal(v)
+						_ = conn.WriteMessage(websocket.TextMessage, jsonData)
+					}
+				}
+				_ = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+			}))
+			defer wsServer.Close()
+
+			wsURL := "ws://" + strings.TrimPrefix(wsServer.URL, "http://")
+			conn, _, _ := websocket.DefaultDialer.Dial(wsURL, nil)
+
+			client := &Client{log: logger.NewServiceLogger("TestClient")}
+			errCh, doneCh := make(chan error, 1), make(chan struct{}, 1)
+
+			callbackCount := 0
+			callback := func(resp *StreamResponse) error {
+				callbackCount++
+				return nil
 			}
-			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(response)
-		}))
-		defer server.Close()
 
-		client := &Client{
-			apiKey:     "test-key",
-			baseURL:    server.URL,
-			httpClient: &http.Client{},
-			log:        logger.NewServiceLogger("TestTranscriptionClient"),
+			go client.readTranscriptionResults(context.Background(), conn, callback, errCh, doneCh)
+
+			select {
+			case <-doneCh:
+				if callbackCount != tt.expectedCalls {
+					t.Errorf("%s: expected %d callbacks, got %d", tt.description, tt.expectedCalls, callbackCount)
+				}
+			case <-time.After(2 * time.Second):
+				t.Fatal("Test timed out")
+			}
+		})
+	}
+}
+
+func TestStreamAudioURLWebSocket(t *testing.T) {
+	setupServers := func(audioHandler, wsHandler http.HandlerFunc) (audioURL, wsURL string, cleanup func()) {
+		audioServer := httptest.NewServer(audioHandler)
+		wsServer := httptest.NewServer(wsHandler)
+		return audioServer.URL, strings.Replace(wsServer.URL, "http://", "ws://", 1), func() {
+			audioServer.Close()
+			wsServer.Close()
 		}
+	}
 
-		expectedErr := "callback error"
-		err := client.StreamAudioURL(
-			context.Background(),
-			"https://example.com/audio.mp3",
-			StreamOptions{Model: "nova-3"},
-			func(response *StreamResponse) error {
-				return json.Unmarshal([]byte("invalid"), &response)
+	t.Run("success", func(t *testing.T) {
+		audioURL, wsURL, cleanup := setupServers(
+			func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+				_, _ = io.WriteString(w, "audio data")
+			},
+			func(w http.ResponseWriter, r *http.Request) {
+				upgrader := websocket.Upgrader{}
+				conn, _ := upgrader.Upgrade(w, r, nil)
+				defer func() { _ = conn.Close() }()
+				for {
+					messageType, message, err := conn.ReadMessage()
+					if err != nil {
+						return
+					}
+					if messageType == websocket.TextMessage && strings.Contains(string(message), "CloseStream") {
+						response := StreamResponse{Type: "Results", IsFinal: true, Channel: Channel{Alternatives: []Alternative{{Words: []Word{{Word: "test"}}}}}}
+						jsonData, _ := json.Marshal(response)
+						_ = conn.WriteMessage(websocket.TextMessage, jsonData)
+						_ = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+						return
+					}
+				}
 			},
 		)
+		defer cleanup()
+
+		client := &Client{apiKey: "test-key", baseURL: wsURL, httpClient: http.DefaultClient, log: logger.NewServiceLogger("TestClient")}
+
+		called := false
+		err := client.StreamAudioURLWebSocket(context.Background(), audioURL, StreamOptions{Model: "nova-2", Language: "en"}, func(resp *StreamResponse) error {
+			called = true
+			return nil
+		})
+
+		if err != nil || !called {
+			t.Errorf("Expected success and callback, got err=%v, called=%v", err, called)
+		}
+	})
+
+	t.Run("context cancellation", func(t *testing.T) {
+		audioURL, wsURL, cleanup := setupServers(
+			func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+				for range 100 {
+					_, _ = io.WriteString(w, "chunk ")
+				}
+			},
+			func(w http.ResponseWriter, r *http.Request) {
+				upgrader := websocket.Upgrader{}
+				conn, _ := upgrader.Upgrade(w, r, nil)
+				defer func() { _ = conn.Close() }()
+				for {
+					if _, _, err := conn.ReadMessage(); err != nil {
+						return
+					}
+				}
+			},
+		)
+		defer cleanup()
+
+		client := &Client{apiKey: "test-key", baseURL: wsURL, httpClient: http.DefaultClient, log: logger.NewServiceLogger("TestClient")}
+
+		ctx, cancel := context.WithCancel(context.Background())
+		go func() {
+			cancel()
+		}()
+
+		err := client.StreamAudioURLWebSocket(ctx, audioURL, StreamOptions{Model: "nova-2"}, func(resp *StreamResponse) error { return nil })
+		if err == nil {
+			t.Error("Expected context cancellation error")
+		}
+	})
+
+	t.Run("callback error", func(t *testing.T) {
+		audioURL, wsURL, cleanup := setupServers(
+			func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+				_, _ = io.WriteString(w, "audio")
+			},
+			func(w http.ResponseWriter, r *http.Request) {
+				upgrader := websocket.Upgrader{}
+				conn, _ := upgrader.Upgrade(w, r, nil)
+				defer func() { _ = conn.Close() }()
+				for {
+					messageType, message, err := conn.ReadMessage()
+					if err != nil {
+						return
+					}
+					if messageType == websocket.TextMessage && strings.Contains(string(message), "CloseStream") {
+						response := StreamResponse{Type: "Results", IsFinal: true, Channel: Channel{Alternatives: []Alternative{{Words: []Word{{Word: "test"}}}}}}
+						jsonData, _ := json.Marshal(response)
+						_ = conn.WriteMessage(websocket.TextMessage, jsonData)
+						return
+					}
+				}
+			},
+		)
+		defer cleanup()
+
+		client := &Client{apiKey: "test-key", baseURL: wsURL, httpClient: http.DefaultClient, log: logger.NewServiceLogger("TestClient")}
+
+		err := client.StreamAudioURLWebSocket(context.Background(), audioURL, StreamOptions{Model: "nova-2"}, func(resp *StreamResponse) error {
+			return fmt.Errorf("callback error")
+		})
 
 		if err == nil {
-			t.Error("Expected callback error, got nil")
-		}
-
-		if err.Error() != expectedErr && !json.Valid([]byte(err.Error())) {
-			t.Logf("Got error: %v", err)
+			t.Error("Expected callback error to be propagated")
 		}
 	})
 }

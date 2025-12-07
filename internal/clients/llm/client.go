@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"time"
 
 	"cribeapp.com/cribe-server/internal/core/logger"
 	"cribeapp.com/cribe-server/internal/utils"
@@ -37,36 +36,38 @@ func NewClient() *Client {
 	})
 
 	return &Client{
-		apiKey:  apiKey,
-		baseURL: baseURL,
-		httpClient: &http.Client{
-			Timeout: 60 * time.Second,
-		},
-		log: log,
+		apiKey:     apiKey,
+		baseURL:    baseURL,
+		httpClient: &http.Client{},
+		log:        log,
 	}
 }
 
 // InferSpeakerName uses AI to infer the speaker's name
 func (c *Client) InferSpeakerName(ctx context.Context, episodeDescription string, speakerIndex int, transcriptChunks []string) (string, error) {
-	// Build context from transcript chunks
+	// Build context from transcript chunks (includes before/during/after speaker talks)
 	chunksText := ""
-	for i, chunk := range transcriptChunks {
-		chunksText += fmt.Sprintf("\n[Segment %d] %s", i+1, chunk)
-		if i >= 9 { // Limit to first 10 chunks to save tokens
-			break
-		}
+	maxChunks := min(len(transcriptChunks), 200) // Limit to avoid token limits
+	for i := range maxChunks {
+		chunksText += transcriptChunks[i] + " "
 	}
 
 	// Create prompt for speaker inference
-	systemPrompt := "You are a helpful assistant that identifies speakers in podcast transcripts. Return ONLY the person's name, nothing else."
+	systemPrompt := "You are an expert at identifying speakers in podcast transcripts. Look for explicit name mentions in the text (e.g., 'this is John', 'I'm Sarah', 'talking with Mike'). Return ONLY the person's name."
 
-	userPrompt := fmt.Sprintf(`Given this podcast episode description:
+	userPrompt := fmt.Sprintf(`Episode description:
 %s
 
-And these transcript segments from speaker %d:
+Transcript excerpt with context around speaker %d:
 %s
 
-Who is speaker %d? Return only the person's full name (e.g., "John Smith" or "Jane Doe"). If you cannot determine the name, return "Speaker %d".`,
+Instructions:
+- Look for the speaker's name mentioned BEFORE they speak (introductions)
+- Look for the speaker's name mentioned WHILE they speak (self-introduction)
+- Look for the speaker's name mentioned AFTER they speak (references)
+- Common patterns: "I'm [name]", "this is [name]", "with [name]", "[name] said"
+
+Who is speaker %d? Return only their full name (e.g., "John Smith"). If uncertain, return "Speaker %d".`,
 		episodeDescription, speakerIndex, chunksText, speakerIndex, speakerIndex)
 
 	// Create request

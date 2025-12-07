@@ -1,6 +1,9 @@
 package transcripts
 
 import (
+	"fmt"
+	"time"
+
 	"cribeapp.com/cribe-server/internal/core/logger"
 	"cribeapp.com/cribe-server/internal/utils"
 )
@@ -32,12 +35,6 @@ func (r *TranscriptRepository) GetTranscriptByEpisodeID(episodeID int) (Transcri
 	result, err := r.transcriptRepo.Executor.QueryItem(query, episodeID)
 
 	if err != nil {
-		if err.Error() == "no rows in result set" {
-			r.logger.Debug("No transcript found for episode", map[string]any{
-				"episodeID": episodeID,
-			})
-			return Transcript{}, err
-		}
 		r.logger.Error("Failed to fetch transcript", map[string]any{
 			"episodeID": episodeID,
 			"error":     err.Error(),
@@ -86,7 +83,7 @@ func (r *TranscriptRepository) CreateTranscript(episodeID int) (int, error) {
 		INSERT INTO transcripts (episode_id, status, created_at)
 		VALUES ($1, 'processing', NOW())
 		ON CONFLICT (episode_id) DO UPDATE
-		SET status = 'processing', created_at = NOW()
+		SET status = 'processing'
 		RETURNING id
 	`
 
@@ -203,6 +200,56 @@ func (r *TranscriptRepository) GetChunksByTranscriptID(transcriptID int) ([]Tran
 	return chunks, nil
 }
 
+func (r *TranscriptRepository) SaveChunksBatched(transcriptID int, chunks []Chunk) error {
+	if len(chunks) == 0 {
+		return nil
+	}
+
+	r.logger.Debug("Saving chunks to database with batching", map[string]any{
+		"transcriptID": transcriptID,
+		"chunkCount":   len(chunks),
+	})
+
+	// Use batched inserts to reduce connection time
+	const batchSize = 500
+	for i := 0; i < len(chunks); i += batchSize {
+		end := min(i+batchSize, len(chunks))
+		batch := chunks[i:end]
+
+		// Build multi-row INSERT
+		query := `INSERT INTO transcript_chunks (transcript_id, position, speaker_index, start_time, end_time, text) VALUES `
+		args := make([]any, 0, len(batch)*6)
+
+		for j, chunk := range batch {
+			if j > 0 {
+				query += ", "
+			}
+			offset := j * 6
+			query += fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, $%d)", offset+1, offset+2, offset+3, offset+4, offset+5, offset+6)
+			args = append(args, transcriptID, chunk.Position, chunk.SpeakerIndex, chunk.Start, chunk.End, chunk.Text)
+		}
+		query += " ON CONFLICT (transcript_id, position) DO NOTHING"
+
+		err := r.chunkRepo.Executor.Exec(query, args...)
+		if err != nil {
+			r.logger.Error("Failed to save chunk batch", map[string]any{
+				"transcriptID": transcriptID,
+				"batchStart":   i,
+				"batchEnd":     end,
+				"error":        err.Error(),
+			})
+			return err
+		}
+	}
+
+	r.logger.Info("Chunks saved successfully", map[string]any{
+		"transcriptID": transcriptID,
+		"chunkCount":   len(chunks),
+	})
+
+	return nil
+}
+
 func (r *TranscriptRepository) SaveChunks(transcriptID int, chunks []Chunk) error {
 	if len(chunks) == 0 {
 		return nil
@@ -269,4 +316,30 @@ func (r *TranscriptRepository) UpsertSpeaker(transcriptID int, speakerIndex int,
 	})
 
 	return nil
+}
+
+func (r *TranscriptRepository) UpsertSpeakerWithRetry(transcriptID int, speakerIndex int, speakerName string) error {
+	const maxRetries = 3
+	const retryDelayMs = 100
+
+	var lastErr error
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		err := r.UpsertSpeaker(transcriptID, speakerIndex, speakerName)
+		if err == nil {
+			return nil
+		}
+
+		lastErr = err
+		if attempt < maxRetries {
+			r.logger.Debug("Retrying speaker upsert", map[string]any{
+				"attempt":      attempt,
+				"transcriptID": transcriptID,
+				"speakerIndex": speakerIndex,
+			})
+			// Simple exponential backoff
+			time.Sleep(time.Duration(retryDelayMs*attempt) * time.Millisecond)
+		}
+	}
+
+	return fmt.Errorf("failed after %d attempts: %w", maxRetries, lastErr)
 }

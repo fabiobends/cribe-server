@@ -18,27 +18,23 @@ func (m *MockTranscriptionClient) StreamAudioURL(ctx context.Context, audioURL s
 	// Simulate streaming a few chunks
 	response := &transcription.StreamResponse{
 		Type: "Results",
-		Results: transcription.Results{
-			Channels: []transcription.Channel{
+		Channel: transcription.Channel{
+			Alternatives: []transcription.Alternative{
 				{
-					Alternatives: []transcription.Alternative{
+					Words: []transcription.Word{
 						{
-							Words: []transcription.Word{
-								{
-									Word:           "Hello",
-									PunctuatedWord: "Hello",
-									Start:          0.0,
-									End:            0.5,
-									Speaker:        0,
-								},
-								{
-									Word:           "world",
-									PunctuatedWord: "world",
-									Start:          0.5,
-									End:            1.0,
-									Speaker:        0,
-								},
-							},
+							Word:           "Hello",
+							PunctuatedWord: "Hello",
+							Start:          0.0,
+							End:            0.5,
+							Speaker:        0,
+						},
+						{
+							Word:           "world",
+							PunctuatedWord: "world",
+							Start:          0.5,
+							End:            1.0,
+							Speaker:        0,
 						},
 					},
 				},
@@ -49,6 +45,11 @@ func (m *MockTranscriptionClient) StreamAudioURL(ctx context.Context, audioURL s
 		return err
 	}
 	return nil
+}
+
+func (m *MockTranscriptionClient) StreamAudioURLWebSocket(ctx context.Context, audioURL string, opts transcription.StreamOptions, callback transcription.StreamCallback) error {
+	// Use the same mock implementation as StreamAudioURL
+	return m.StreamAudioURL(ctx, audioURL, opts, callback)
 }
 
 type MockLLMClient struct{}
