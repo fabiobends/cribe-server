@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"cribeapp.com/cribe-server/internal/clients/llm"
 	"cribeapp.com/cribe-server/internal/clients/transcription"
@@ -12,7 +13,7 @@ import (
 
 // TranscriptionClientInterface defines the contract for transcription clients
 type TranscriptionClientInterface interface {
-	StreamAudioURL(ctx context.Context, audioURL string, opts transcription.StreamOptions, callback transcription.StreamCallback) error
+	StreamAudioURLWebSocket(ctx context.Context, audioURL string, opts transcription.StreamOptions, callback transcription.StreamCallback) error
 }
 
 // LLMClientInterface defines the contract for LLM clients
@@ -83,14 +84,8 @@ func (s *Service) StreamTranscript(ctx context.Context, episodeID int, chunkCB C
 		"audioURL": episode.AudioURL,
 	})
 
-	// Create new transcript record
-	transcriptID, err = s.createTranscript(episodeID)
-	if err != nil {
-		return fmt.Errorf("failed to create transcript: %w", err)
-	}
-
 	// Stream from transcription API and save to DB
-	return s.streamFromTranscriptionAPI(ctx, transcriptID, episode.AudioURL, episode.Description, chunkCB, speakerCB)
+	return s.streamFromTranscriptionAPI(episodeID, episode.AudioURL, episode.Description, chunkCB, speakerCB)
 }
 
 // getExistingTranscript checks if a transcript exists for the episode
@@ -121,11 +116,20 @@ func (s *Service) streamFromDB(transcriptID int, chunkCB ChunkCallback, speakerC
 		return fmt.Errorf("failed to get speakers: %w", err)
 	}
 
+	s.log.Info("Streaming speakers from DB", map[string]any{
+		"transcriptID": transcriptID,
+		"speakerCount": len(speakers),
+	})
+
 	for _, speaker := range speakers {
 		if err := speakerCB(&Speaker{
 			Index: speaker.SpeakerIndex,
 			Name:  speaker.SpeakerName,
 		}); err != nil {
+			s.log.Error("Failed to send speaker callback", map[string]any{
+				"error":        err.Error(),
+				"speakerIndex": speaker.SpeakerIndex,
+			})
 			return err
 		}
 	}
@@ -136,47 +140,93 @@ func (s *Service) streamFromDB(transcriptID int, chunkCB ChunkCallback, speakerC
 		return fmt.Errorf("failed to query chunks: %w", err)
 	}
 
-	for _, chunk := range chunks {
-		if err := chunkCB(&Chunk{
-			Position:     chunk.Position,
-			SpeakerIndex: chunk.SpeakerIndex,
-			Start:        chunk.StartTime,
-			End:          chunk.EndTime,
-			Text:         chunk.Text,
-		}); err != nil {
-			return err
+	s.log.Info("Streaming chunks from DB", map[string]any{
+		"transcriptID": transcriptID,
+		"chunkCount":   len(chunks),
+	})
+
+	// For cached transcripts, send chunks in batches to reduce SSE events and prevent UI flickering
+	const batchSize = 5
+	for i := 0; i < len(chunks); i += batchSize {
+		end := min(i+batchSize, len(chunks))
+
+		// Send batch of chunks
+		for _, chunk := range chunks[i:end] {
+			if err := chunkCB(&Chunk{
+				Position:     chunk.Position,
+				SpeakerIndex: chunk.SpeakerIndex,
+				Start:        chunk.StartTime,
+				End:          chunk.EndTime,
+				Text:         chunk.Text,
+			}); err != nil {
+				s.log.Error("Failed to send chunk callback", map[string]any{
+					"error":    err.Error(),
+					"position": chunk.Position,
+				})
+				return err
+			}
+		}
+
+		// This prevents overwhelming the UI with rapid updates
+		if end < len(chunks) {
+			time.Sleep(20 * time.Millisecond)
 		}
 	}
+
+	s.log.Info("Completed streaming from DB", map[string]any{
+		"transcriptID":  transcriptID,
+		"totalChunks":   len(chunks),
+		"totalSpeakers": len(speakers),
+	})
 
 	return nil
 }
 
 // streamFromTranscriptionAPI streams from transcription API and saves to DB
-func (s *Service) streamFromTranscriptionAPI(ctx context.Context, transcriptID int, audioURL, episodeDesc string, chunkCB ChunkCallback, speakerCB SpeakerCallback) error {
-	var (
-		chunks        []Chunk
-		speakersSeen  = make(map[int]bool)
-		position      = 0
-		mu            sync.Mutex
-		speakerChunks = make(map[int][]string)
+func (s *Service) streamFromTranscriptionAPI(episodeId int, audioURL, episodeDesc string, chunkCB ChunkCallback, speakerCB SpeakerCallback) error {
+	const (
+		minSamplesForInference = 50 // Min words before inferring speaker name
 	)
 
-	// Stream from transcription API
-	err := s.transcriptionClient.StreamAudioURL(ctx, audioURL, transcription.StreamOptions{
+	var (
+		chunks          []Chunk
+		speakersSeen    = make(map[int]bool)
+		speakerInferred = make(map[int]bool)
+		position        = 0
+		mu              sync.Mutex
+		speakerChunks   = make(map[int][]string)
+	)
+
+	// Use background context for WebSocket so it continues even if client disconnects
+	bgCtx := context.Background()
+
+	transcriptID, err := s.createTranscript(episodeId)
+
+	if err != nil {
+		s.log.Error("Failed to create transcript record", map[string]any{
+			"error": err.Error(),
+		})
+		return fmt.Errorf("failed to create transcript record: %w", err)
+	}
+
+	// Stream from transcription API using WebSocket for real-time results
+	err = s.transcriptionClient.StreamAudioURLWebSocket(bgCtx, audioURL, transcription.StreamOptions{
 		Model:      "nova-3",
 		Language:   "en",
 		Diarize:    true,
 		Punctuate:  true,
 		Utterances: false,
 	}, func(response *transcription.StreamResponse) error {
-		// Skip responses without alternatives (empty chunks)
-		if len(response.Results.Channels) == 0 || len(response.Results.Channels[0].Alternatives) == 0 {
+		if len(response.Channel.Alternatives) == 0 {
 			return nil
 		}
 
-		alt := response.Results.Channels[0].Alternatives[0]
+		words := response.Channel.Alternatives[0].Words
+		if len(words) == 0 {
+			return nil
+		}
 
-		for _, word := range alt.Words {
+		for _, word := range words {
 			chunk := Chunk{
 				Position:     position,
 				SpeakerIndex: word.Speaker,
@@ -198,15 +248,78 @@ func (s *Service) streamFromTranscriptionAPI(ctx context.Context, transcriptID i
 					Index: word.Speaker,
 					Name:  fmt.Sprintf("Speaker %d", word.Speaker),
 				}); err != nil {
-					mu.Unlock()
-					return err
+					s.log.Info("Client disconnected, continuing transcription", map[string]any{
+						"error": err.Error(),
+					})
 				}
+			}
+
+			// Early speaker inference: when we have enough samples and haven't inferred yet
+			if !speakerInferred[word.Speaker] && len(speakerChunks[word.Speaker]) >= minSamplesForInference {
+				speakerInferred[word.Speaker] = true
+
+				s.log.Info("Early inference for speaker", map[string]any{
+					"speakerIndex": word.Speaker,
+					"chunkCount":   len(speakerChunks[word.Speaker]),
+					"threshold":    minSamplesForInference,
+				})
+
+				speakerIdx := word.Speaker
+				contextWords := s.buildEarlySpeakerContext(chunks, speakerIdx)
+
+				s.log.Info("Starting early inference goroutine", map[string]any{
+					"speakerIndex": speakerIdx,
+					"contextWords": len(contextWords),
+				})
+
+				go func(idx int, words []string) {
+					name, err := s.llmClient.InferSpeakerName(context.Background(), episodeDesc, idx, words)
+					if err != nil {
+						s.log.Error("Failed early speaker inference", map[string]any{
+							"error":        err.Error(),
+							"speakerIndex": idx,
+						})
+						return
+					}
+
+					s.log.Info("Success on speaker inference", map[string]any{
+						"speakerIndex":    idx,
+						"inferredName":    name,
+						"sendingToClient": true,
+					})
+
+					if err := s.repo.UpsertSpeakerWithRetry(transcriptID, idx, name); err != nil {
+						s.log.Error("Failed to save early inferred speaker", map[string]any{
+							"error":        err.Error(),
+							"speakerIndex": idx,
+						})
+						return
+					}
+
+					// Update client with real name
+					if err := speakerCB(&Speaker{
+						Index: idx,
+						Name:  name,
+					}); err != nil {
+						s.log.Debug("Client disconnected during early inference", map[string]any{
+							"error": err.Error(),
+						})
+					} else {
+						s.log.Info("Speaker event sent to client", map[string]any{
+							"speakerIndex": idx,
+							"speakerName":  name,
+						})
+					}
+				}(speakerIdx, contextWords)
 			}
 			mu.Unlock()
 
 			if err := chunkCB(&chunk); err != nil {
-				return err
+				s.log.Info("Client disconnected, continuing transcription", map[string]any{
+					"error": err.Error(),
+				})
 			}
+
 		}
 
 		return nil
@@ -220,23 +333,60 @@ func (s *Service) streamFromTranscriptionAPI(ctx context.Context, transcriptID i
 		return fmt.Errorf("transcription streaming error: %w", err)
 	}
 
-	s.log.Info("Transcription completed, saving to DB", map[string]any{
-		"totalChunks": len(chunks),
+	// Streaming completed successfully, save to DB in background
+	// Pass speakerInferred map to skip already-inferred speakers
+	go s.saveTranscriptInBackground(transcriptID, chunks, speakerChunks, episodeDesc, speakerInferred, speakerCB)
+
+	return nil
+}
+
+// saveTranscriptInBackground saves chunks and infers speaker names in the background
+func (s *Service) saveTranscriptInBackground(transcriptID int, chunks []Chunk, speakerChunks map[int][]string, episodeDesc string, speakerInferred map[int]bool, speakerCB SpeakerCallback) {
+	s.log.Info("Saving transcript to DB in background", map[string]any{
+		"transcriptID": transcriptID,
+		"totalChunks":  len(chunks),
 	})
 
-	// Save chunks to DB
-	if err := s.repo.SaveChunks(transcriptID, chunks); err != nil {
-		return fmt.Errorf("failed to save chunks: %w", err)
+	// Save chunks to DB using batched inserts to reduce connection time
+	if err := s.repo.SaveChunksBatched(transcriptID, chunks); err != nil {
+		s.log.Error("Failed to save chunks", map[string]any{
+			"error": err.Error(),
+		})
+		_ = s.repo.UpdateTranscriptStatus(transcriptID, string(TranscriptStatusFailed), err.Error())
+		return
 	}
 
-	// Infer speaker names in parallel
+	// Build context-aware speaker samples (includes words before/after speaker talks)
+	speakerContexts := s.buildSpeakerContexts(chunks)
+
+	// Infer speaker names in parallel (skip already-inferred speakers)
 	var wg sync.WaitGroup
-	for speakerIndex, speakerWords := range speakerChunks {
+	speakersToInfer := 0
+	for speakerIndex := range speakerContexts {
+		if !speakerInferred[speakerIndex] {
+			speakersToInfer++
+		}
+	}
+
+	s.log.Info("Starting late speaker inference", map[string]any{
+		"totalSpeakers":   len(speakerContexts),
+		"speakersToInfer": speakersToInfer,
+		"alreadyInferred": len(speakerContexts) - speakersToInfer,
+	})
+
+	for speakerIndex, contextWords := range speakerContexts {
+		if speakerInferred[speakerIndex] {
+			s.log.Debug("Skipping already-inferred speaker", map[string]any{
+				"speakerIndex": speakerIndex,
+			})
+			continue // Already inferred during streaming
+		}
+
 		wg.Add(1)
 		go func(idx int, words []string) {
 			defer wg.Done()
 
-			// Use background context to prevent cancellation when client disconnects
+			// Use background context to prevent cancellation
 			speakerName, err := s.llmClient.InferSpeakerName(context.Background(), episodeDesc, idx, words)
 			if err != nil {
 				s.log.Error("Failed to infer speaker name", map[string]any{
@@ -246,39 +396,142 @@ func (s *Service) streamFromTranscriptionAPI(ctx context.Context, transcriptID i
 				return
 			}
 
-			// Update database
-			if err := s.repo.UpsertSpeaker(transcriptID, idx, speakerName); err != nil {
+			// Update database with retry
+			if err := s.repo.UpsertSpeakerWithRetry(transcriptID, idx, speakerName); err != nil {
 				s.log.Error("Failed to save speaker", map[string]any{
-					"error": err.Error(),
+					"error":        err.Error(),
+					"speakerIndex": idx,
 				})
 				return
 			}
 
-			// Send updated speaker name to client (will fail gracefully if disconnected)
-			if err := speakerCB(&Speaker{
-				Index: idx,
-				Name:  speakerName,
-			}); err != nil {
-				s.log.Error("Failed to send speaker update", map[string]any{
-					"error": err.Error(),
-				})
-				return
+			// Update client with real name
+			if speakerCB != nil {
+				if err := speakerCB(&Speaker{
+					Index: idx,
+					Name:  speakerName,
+				}); err != nil {
+					s.log.Debug("Client disconnected during late inference", map[string]any{
+						"error": err.Error(),
+					})
+				}
 			}
-
-			s.log.Info("Speaker name inferred and updated", map[string]any{
-				"speakerIndex": idx,
-				"speakerName":  speakerName,
-			})
-		}(speakerIndex, speakerWords)
+		}(speakerIndex, contextWords)
 	}
-
-	// Wait for all speaker inferences to complete
 	wg.Wait()
 
-	// Mark as complete after all speaker inference
+	// Update transcript status
 	if err := s.repo.UpdateTranscriptStatus(transcriptID, string(TranscriptStatusComplete), ""); err != nil {
-		return err
+		s.log.Error("Failed to update transcript status", map[string]any{
+			"error": err.Error(),
+		})
+		return
 	}
 
-	return nil
+	s.log.Info("Transcript saved successfully", map[string]any{
+		"transcriptID": transcriptID,
+	})
+}
+
+// buildSpeakerContexts creates context-aware samples for each speaker by including
+// words spoken before, during, and after their speaking segments to capture name mentions
+func (s *Service) buildSpeakerContexts(chunks []Chunk) map[int][]string {
+	const (
+		contextWindowBefore = 30 // words before speaker starts
+		contextWindowAfter  = 30 // words after speaker finishes
+		maxSamplesPerWindow = 3  // max speaker segments to sample
+	)
+
+	speakerContexts := make(map[int][]string)
+	speakerSegments := make(map[int][][]int) // speaker -> list of [startIdx, endIdx]
+
+	// Find all speaking segments for each speaker
+	currentSpeaker := -1
+	segmentStart := 0
+
+	for i, chunk := range chunks {
+		if chunk.SpeakerIndex != currentSpeaker {
+			// Speaker changed
+			if currentSpeaker != -1 {
+				// Save previous segment
+				speakerSegments[currentSpeaker] = append(speakerSegments[currentSpeaker], []int{segmentStart, i - 1})
+			}
+			currentSpeaker = chunk.SpeakerIndex
+			segmentStart = i
+		}
+	}
+	// Save last segment
+	if currentSpeaker != -1 && len(chunks) > 0 {
+		speakerSegments[currentSpeaker] = append(speakerSegments[currentSpeaker], []int{segmentStart, len(chunks) - 1})
+	}
+
+	// Build context for each speaker
+	for speaker, segments := range speakerSegments {
+		var contextWords []string
+
+		// Sample up to maxSamplesPerWindow segments (beginning, middle, end)
+		samplesToTake := min(len(segments), maxSamplesPerWindow)
+		step := 1
+		if len(segments) > maxSamplesPerWindow {
+			step = len(segments) / maxSamplesPerWindow
+		}
+
+		for i := range samplesToTake {
+			segmentIdx := i * step
+			segment := segments[segmentIdx]
+			startIdx := segment[0]
+			endIdx := segment[1]
+
+			// Include words BEFORE speaker starts
+			beforeStart := max(0, startIdx-contextWindowBefore)
+			for j := beforeStart; j < startIdx; j++ {
+				contextWords = append(contextWords, chunks[j].Text)
+			}
+
+			// Include words DURING speaker talks
+			for j := startIdx; j <= endIdx; j++ {
+				contextWords = append(contextWords, chunks[j].Text)
+			}
+
+			// Include words AFTER speaker finishes
+			afterEnd := min(len(chunks)-1, endIdx+contextWindowAfter)
+			for j := endIdx + 1; j <= afterEnd; j++ {
+				contextWords = append(contextWords, chunks[j].Text)
+			}
+		}
+
+		speakerContexts[speaker] = contextWords
+	}
+
+	return speakerContexts
+}
+
+// buildEarlySpeakerContext creates context for a speaker during streaming (simpler than full context)
+func (s *Service) buildEarlySpeakerContext(chunks []Chunk, targetSpeaker int) []string {
+	const contextWindow = 30 // words around speaker segments
+
+	var contextWords []string
+
+	for i, chunk := range chunks {
+		if chunk.SpeakerIndex == targetSpeaker {
+			// Include words before
+			beforeStart := max(0, i-contextWindow)
+			for j := beforeStart; j < i; j++ {
+				contextWords = append(contextWords, chunks[j].Text)
+			}
+
+			// Include this word
+			contextWords = append(contextWords, chunk.Text)
+
+			// Include words after
+			afterEnd := min(len(chunks), i+contextWindow)
+			for j := i + 1; j < afterEnd; j++ {
+				contextWords = append(contextWords, chunks[j].Text)
+			}
+
+			break // Just get first occurrence with context
+		}
+	}
+
+	return contextWords
 }

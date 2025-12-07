@@ -1,15 +1,18 @@
 package transcription
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
-	"time"
+
+	"github.com/gorilla/websocket"
 
 	"cribeapp.com/cribe-server/internal/core/logger"
 	"cribeapp.com/cribe-server/internal/utils"
@@ -37,23 +40,25 @@ func NewClient() *Client {
 	})
 
 	return &Client{
-		apiKey:  apiKey,
-		baseURL: baseURL,
-		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
-		},
-		log: log,
+		apiKey:     apiKey,
+		baseURL:    baseURL,
+		httpClient: &http.Client{},
+		log:        log,
 	}
 }
 
 // StreamAudioURL streams audio from a URL and processes transcription
 func (c *Client) StreamAudioURL(ctx context.Context, audioURL string, opts StreamOptions, callback StreamCallback) error {
 	// Build query parameters
-	queryParams := fmt.Sprintf("model=%s&language=%s&diarize=%t&punctuate=%t&utterances=%t",
-		opts.Model, opts.Language, opts.Diarize, opts.Punctuate, opts.Utterances)
+	q := url.Values{}
+	q.Set("model", opts.Model)
+	q.Set("language", opts.Language)
+	q.Set("diarize", fmt.Sprintf("%t", opts.Diarize))
+	q.Set("punctuate", fmt.Sprintf("%t", opts.Punctuate))
+	q.Set("utterances", fmt.Sprintf("%t", opts.Utterances))
 
 	// Create request
-	reqURL := fmt.Sprintf("%s/listen?%s", c.baseURL, queryParams)
+	reqURL := fmt.Sprintf("%s/listen?%s", c.baseURL, q.Encode())
 
 	reqBody := map[string]string{"url": audioURL}
 	jsonBody, err := utils.EncodeToJSON(reqBody)
@@ -109,76 +114,280 @@ func (c *Client) StreamAudioURL(ctx context.Context, audioURL string, opts Strea
 	return c.processStreamingResponse(resp.Body, callback)
 }
 
-// processStreamingResponse reads and parses the response, then streams it in chunks
-func (c *Client) processStreamingResponse(body io.Reader, callback StreamCallback) error {
-	// Read the entire response body
-	responseBody, err := io.ReadAll(body)
+// buildWebSocketURL constructs a WebSocket URL with query parameters for Deepgram API
+func (c *Client) buildWebSocketURL(opts StreamOptions) (string, error) {
+	wsURL := strings.Replace(c.baseURL, "https://", "wss://", 1)
+
+	u, err := url.Parse(wsURL + "/listen")
 	if err != nil {
-		c.log.Error("Failed to read transcription response", map[string]any{
-			"error": err.Error(),
-		})
-		return fmt.Errorf("failed to read response: %w", err)
+		return "", fmt.Errorf("failed to parse WebSocket URL: %w", err)
 	}
 
-	// Parse the complete response
-	var response StreamResponse
-	if err := json.Unmarshal(responseBody, &response); err != nil {
-		c.log.Error("Failed to parse transcription response", map[string]any{
-			"error":      err.Error(),
-			"bodySample": string(responseBody[:min(len(responseBody), 500)]),
-		})
-		return fmt.Errorf("failed to parse response: %w", err)
+	q := u.Query()
+	q.Set("model", opts.Model)
+	q.Set("language", opts.Language)
+	q.Set("diarize", fmt.Sprintf("%t", opts.Diarize))
+	q.Set("punctuate", fmt.Sprintf("%t", opts.Punctuate))
+	q.Set("utterances", fmt.Sprintf("%t", opts.Utterances))
+	q.Set("interim_results", "false")
+	u.RawQuery = q.Encode()
+
+	return u.String(), nil
+}
+
+// streamAudioToWebSocket downloads audio from URL and streams it to the WebSocket connection
+func (c *Client) streamAudioToWebSocket(ctx context.Context, conn *websocket.Conn, audioURL string, errCh chan<- error, doneCh chan<- struct{}) {
+	req, err := http.NewRequestWithContext(ctx, "GET", audioURL, nil)
+	if err != nil {
+		errCh <- fmt.Errorf("failed to create audio download request: %w", err)
+		return
 	}
 
-	// Check if we have transcript data
-	if len(response.Results.Channels) == 0 || len(response.Results.Channels[0].Alternatives) == 0 {
-		c.log.Warn("No alternatives in transcription response", nil)
-		return nil
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		errCh <- fmt.Errorf("failed to download audio: %w", err)
+		return
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			c.log.Error("Failed to close audio response body", map[string]any{
+				"error": err.Error(),
+			})
+		}
+	}()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		errCh <- fmt.Errorf("audio download failed: status=%d, body=%s", resp.StatusCode, string(body))
+		return
 	}
 
-	alternative := response.Results.Channels[0].Alternatives[0]
-	words := alternative.Words
-
-	c.log.Info("Processing transcription words", map[string]any{
-		"totalWords": len(words),
+	c.log.Info("Started streaming audio to WebSocket", map[string]any{
+		"audioURL": audioURL,
 	})
 
-	// Stream words individually for better highlighting granularity
-	for i, word := range words {
-		isLastWord := i == len(words)-1
+	reader := bufio.NewReader(resp.Body)
+	buffer := make([]byte, 8192)
+	totalBytesSent := 0
 
-		// Create a response with single word
-		wordResponse := StreamResponse{
-			IsFinal:  isLastWord,
-			Type:     "Results",
-			Metadata: response.Metadata,
-			Results: Results{
-				Channels: []Channel{
-					{
-						Alternatives: []Alternative{
-							{
-								Transcript: word.PunctuatedWord,
-								Confidence: alternative.Confidence,
-								Words:      []Word{word},
-							},
-						},
-					},
-				},
-			},
+	for {
+		select {
+		case <-ctx.Done():
+			errCh <- ctx.Err()
+			return
+		default:
 		}
 
-		if err := callback(&wordResponse); err != nil {
-			c.log.Error("Callback error processing word", map[string]any{
-				"error":     err.Error(),
-				"wordIndex": i + 1,
-				"word":      word.PunctuatedWord,
+		n, err := reader.Read(buffer)
+		if n > 0 {
+			if err := conn.WriteMessage(websocket.BinaryMessage, buffer[:n]); err != nil {
+				errCh <- fmt.Errorf("failed to send audio chunk: %w", err)
+				return
+			}
+			totalBytesSent += n
+		}
+
+		if err != nil {
+			if err == io.EOF {
+				c.log.Info("Finished streaming audio to WebSocket", map[string]any{
+					"totalBytesSent": totalBytesSent,
+				})
+				closeMsg := []byte("{\"type\":\"CloseStream\"}")
+				if err := conn.WriteMessage(websocket.TextMessage, closeMsg); err != nil {
+					c.log.Error("Failed to send close stream message", map[string]any{
+						"error": err.Error(),
+					})
+				}
+				doneCh <- struct{}{}
+				return
+			}
+			errCh <- fmt.Errorf("failed to read audio: %w", err)
+			return
+		}
+	}
+}
+
+// readTranscriptionResults reads and processes messages from the WebSocket connection
+func (c *Client) readTranscriptionResults(ctx context.Context, conn *websocket.Conn, callback StreamCallback, errCh chan<- error, doneCh chan<- struct{}) {
+	defer func() {
+		if err := conn.Close(); err != nil {
+			c.log.Error("Failed to close WebSocket in reader goroutine", map[string]any{
+				"error": err.Error(),
+			})
+		}
+	}()
+
+	messageCount := 0
+	for {
+		select {
+		case <-ctx.Done():
+			c.log.Info("WebSocket reader stopping due to context cancellation", map[string]any{
+				"messagesReceived": messageCount,
+			})
+			errCh <- ctx.Err()
+			return
+		default:
+		}
+
+		_, message, err := conn.ReadMessage()
+		if err != nil {
+			if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway) {
+				c.log.Info("WebSocket closed normally", map[string]any{
+					"messagesReceived": messageCount,
+				})
+				doneCh <- struct{}{}
+				return
+			}
+			errCh <- fmt.Errorf("failed to read WebSocket message: %w", err)
+			return
+		}
+
+		messageCount++
+		if messageCount%10 == 0 {
+			c.log.Debug("WebSocket progress", map[string]any{
+				"messagesReceived": messageCount,
+			})
+		}
+
+		var resp StreamResponse
+		if err := json.Unmarshal(message, &resp); err != nil {
+			c.log.Error("Failed to unmarshal WebSocket message", map[string]any{
+				"error":   err.Error(),
+				"message": string(message),
+			})
+			continue
+		}
+
+		if resp.Type != "" && resp.Type != "Results" {
+			continue
+		}
+
+		if len(resp.Channel.Alternatives) == 0 {
+			c.log.Debug("Received message with no alternatives", map[string]any{
+				"type": resp.Type,
+			})
+			continue
+		}
+
+		if !resp.IsFinal {
+			continue
+		}
+
+		if err := callback(&resp); err != nil {
+			c.log.Error("Callback error processing WebSocket response", map[string]any{
+				"error": err.Error(),
+			})
+			errCh <- err
+			return
+		}
+	}
+}
+
+// StreamAudioURLWebSocket streams audio from a URL to Deepgram's WebSocket endpoint
+// for real-time transcription. This enables progressive transcription of long-form
+// audio (e.g., 2+ hour podcasts) by downloading and streaming audio chunks concurrently
+// with receiving transcription results.
+func (c *Client) StreamAudioURLWebSocket(ctx context.Context, audioURL string, opts StreamOptions, callback StreamCallback) error {
+	wsURLString, err := c.buildWebSocketURL(opts)
+	if err != nil {
+		return err
+	}
+
+	headers := http.Header{}
+	headers.Set("Authorization", "Token "+c.apiKey)
+
+	c.log.Info("Connecting to Deepgram WebSocket", map[string]any{
+		"url":      wsURLString,
+		"audioURL": audioURL,
+	})
+
+	conn, _, err := websocket.DefaultDialer.Dial(wsURLString, headers)
+	if err != nil {
+		c.log.Error("Failed to connect to WebSocket", map[string]any{
+			"error": err.Error(),
+		})
+		return fmt.Errorf("failed to connect to WebSocket: %w", err)
+	}
+
+	streamCtx, cancel := context.WithCancel(ctx)
+	errCh := make(chan error, 2)
+	doneCh := make(chan struct{}, 2)
+
+	go c.streamAudioToWebSocket(streamCtx, conn, audioURL, errCh, doneCh)
+	go func() {
+		defer cancel()
+		c.readTranscriptionResults(streamCtx, conn, callback, errCh, doneCh)
+	}()
+
+	completedGoroutines := 0
+	for completedGoroutines < 2 {
+		select {
+		case <-streamCtx.Done():
+			c.log.Info("WebSocket stream context cancelled", map[string]any{
+				"error": ctx.Err(),
+			})
+			return ctx.Err()
+		case err := <-errCh:
+			c.log.Error("WebSocket stream error", map[string]any{
+				"error": err.Error(),
+			})
+			cancel()
+			return err
+		case <-doneCh:
+			completedGoroutines++
+			c.log.Info("WebSocket goroutine completed", map[string]any{
+				"completed": completedGoroutines,
+			})
+		}
+	}
+
+	c.log.Info("WebSocket stream completed successfully", nil)
+	return nil
+}
+
+// processStreamingResponse reads and parses NDJSON (newline-delimited JSON) response.
+// The transcription API streams back multiple JSON objects, one per line, which we
+// decode incrementally using json.Decoder. Each decoded object is passed to the callback
+// for processing (typically word-by-word transcription with speaker diarization).
+func (c *Client) processStreamingResponse(body io.Reader, callback StreamCallback) error {
+	dec := json.NewDecoder(body)
+
+	var totalProcessed int
+	for {
+		var resp StreamResponse
+		if err := dec.Decode(&resp); err != nil {
+			if err == io.EOF {
+				// Stream ended cleanly
+				c.log.Info("Reached end of transcription stream", map[string]any{"totalProcessed": totalProcessed})
+				return nil
+			}
+
+			c.log.Error("Failed to decode streamed transcription response", map[string]any{
+				"error": err.Error(),
+			})
+			return fmt.Errorf("failed to decode streamed response: %w", err)
+		}
+
+		// If the response doesn't contain alternatives, skip it
+		if len(resp.Results.Channels) == 0 || len(resp.Results.Channels[0].Alternatives) == 0 {
+			continue
+		}
+
+		alt := resp.Results.Channels[0].Alternatives[0]
+		words := alt.Words
+
+		c.log.Debug("Processing streamed transcription response chunk", map[string]any{"words": len(words), "isFinal": resp.IsFinal})
+
+		// Invoke callback with the decoded response directly so the caller
+		// can handle grouping/word-level processing. Keep track of processed
+		// words for diagnostics.
+		if err := callback(&resp); err != nil {
+			c.log.Error("Callback error processing streamed response", map[string]any{
+				"error": err.Error(),
 			})
 			return err
 		}
-	}
 
-	c.log.Info("Transcription stream completed successfully", map[string]any{
-		"totalWords": len(words),
-	})
-	return nil
+		totalProcessed += len(words)
+	}
 }

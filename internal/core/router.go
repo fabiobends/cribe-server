@@ -47,17 +47,13 @@ func Handler(port string) error {
 		Addr:           ":" + port,
 		Handler:        muxWithMiddleware,
 		ReadTimeout:    15 * time.Second,
-		WriteTimeout:   15 * time.Second,
+		WriteTimeout:   4 * time.Hour, // Long timeout for SSE streaming of transcripts
 		IdleTimeout:    60 * time.Second,
 		MaxHeaderBytes: 1 << 20, // 1 MB
 	}
 
 	log.Info("Starting HTTP server", map[string]any{
-		"port":           port,
-		"readTimeout":    "15s",
-		"writeTimeout":   "15s",
-		"idleTimeout":    "60s",
-		"maxHeaderBytes": "1MB",
+		"port": port,
 	})
 
 	return server.ListenAndServe()

@@ -1,103 +1,118 @@
 # Transcript Streaming API
 
-Real-time podcast episode transcription with speaker identification.
+Real-time podcast transcription with speaker diarization via Server-Sent Events.
 
-## Features
+## Endpoint
 
-- **Real-time Streaming**: SSE endpoint for live transcript delivery
-- **Speaker Diarization**: Automatic speaker detection and identification
-- **AI-Powered Speaker Naming**: Infers speaker names from episode context during streaming
-- **Persistent Caching**: Saves transcripts to avoid re-processing (cost optimization)
-- **Vendor Agnostic**: Easily swap transcription/inference providers
+```
+GET /transcripts/stream/sse?episode_id={id}
+```
+
+### SSE Events
+
+| Event      | Data                                          | Description                                    |
+| ---------- | --------------------------------------------- | ---------------------------------------------- |
+| `chunk`    | `{position, speaker_index, start, end, text}` | Transcript word with timestamp                 |
+| `speaker`  | `{index, name}`                               | Speaker identification (initial + AI-inferred) |
+| `complete` | -                                             | Processing finished                            |
+| `error`    | `{error}`                                     | Error occurred                                 |
 
 ## Architecture
 
-### Endpoint
-
-#### SSE Endpoint (Server-Sent Events)
-```
-GET /transcripts/stream/sse?episode_id=1
-```
-
-**Response Events:**
-- `chunk`: Transcript text segments with timestamps and speaker
-  ```json
-  {
-    "position": 0,
-    "speaker_index": 0,
-    "start": 0.5,
-    "end": 2.3,
-    "text": "Welcome to the podcast"
-  }
-  ```
-- `speaker`: Speaker identification updates (sent twice per speaker: initial placeholder + inferred name)
-  ```json
-  {
-    "index": 0,
-    "name": "John Doe"
-  }
-  ```
-- `complete`: Transcription and speaker inference finished
-- `error`: Error occurred
-  ```json
-  {
-    "error": "error message"
-  }
-  ```
-
-### Data Flow
+### Flow Diagram
 
 ```
-1. Client requests transcript
-2. Check DB cache → Stream from DB if exists
-3. If new:
-   a. Stream from transcription API (Deepgram)
-   b. Send chunks to client in real-time
-   c. Detect speakers → Send initial names ("Speaker 0")
-   d. After chunks complete: Infer real names with AI (OpenAI)
-   e. Send updated speaker names to client
-   f. Save everything to DB
-4. Future requests: Stream from DB (instant, free)
+┌──────┐  GET /transcripts/stream/sse?episode_id=1
+│Client│───────────────────────────────────────────────┐
+└──┬───┘                                               │
+   │                                           ┌───────▼────────┐
+   │◄──────────── SSE: chunk events ───────────┤  HTTP Handler  │
+   │◄──────────── SSE: speaker events ─────────┤   (service.go) │
+   │◄──────────── SSE: complete event ─────────└───────┬────────┘
+   │                                                    │
+   │                                         Check DB for cached?
+   │                                                    │
+   │                                        ┌───────────▼──────────┐
+   │                                        │   YES: Stream from   │
+   │                                        │   DB (instant)       │
+   │                                        └──────────────────────┘
+   │                                        ┌──────────────────────┐
+   │                                        │   NO: New transcript │
+   │                                        └───────┬──────────────┘
+   │                                                │
+   │                        ┌───────────────────────┼───────────────────────┐
+   │                        │                       │                       │
+   │                 ┌──────▼─────┐         ┌──────▼─────┐         ┌───────▼──────┐
+   │                 │  Goroutine 1│         │ Goroutine 2│         │  Main Thread │
+   │                 │Download+Send│         │Read Results│         │  Stream SSE  │
+   │                 │ Audio → WSS │         │  WSS → CB  │         │  to Client   │
+   │                 └──────┬──────┘         └──────┬─────┘         └──────────────┘
+   │                        │                       │
+   │                        ▼                       ▼
+   │                 ┌─────────────────────────────────┐
+   │                 │   Deepgram WebSocket (WSS)      │
+   │                 │   - Receives: Binary audio      │
+   │                 │   - Sends: JSON transcription   │
+   │                 └─────────────────────────────────┘
+   │
+   │              After streaming completes:
+   │              ┌────────────────────────────────┐
+   │              │  Background Goroutine:         │
+   │              │  1. Save chunks to DB          │
+   │              │  2. Infer speaker names (LLM)  │
+   │              │  3. Update transcript status   │
+   │              └────────────────────────────────┘
 ```
+
+### WebSocket Goroutines
+
+**Goroutine 1** (Audio Uploader):
+
+- Downloads audio from URL
+- Streams binary chunks to Deepgram WebSocket
+- Signals completion via `doneCh`
+
+**Goroutine 2** (Transcript Reader):
+
+- Reads JSON messages from WebSocket
+- Invokes callback for each word
+- Main thread accumulates chunks and streams to client
+
+**Synchronization**:
+
+- Shared `WebSocket conn` (full-duplex)
+- `streamCtx` for cancellation
+- `errCh` / `doneCh` for error/completion signaling
 
 ### Database Schema
 
-**transcripts**
-- Tracks processing status per episode
-- Prevents duplicate processing
+```sql
+transcripts (id, episode_id, status, error_message, created_at, completed_at)
+  ├── transcript_chunks (id, transcript_id, position, speaker_index, start_time, end_time, text)
+  └── transcript_speakers (id, transcript_id, speaker_index, speaker_name, inferred_at)
+```
 
-**transcript_chunks**
-- Stores every word with timestamp
-- Linked to speaker index
+**Constraints**:
 
-**transcript_speakers**
-- Maps speaker index → real name
-- Never re-infer speaker names
+- `transcripts`: One per episode (unique `episode_id`)
+- `transcript_chunks`: Unique `(transcript_id, position)`
+- `transcript_speakers`: Unique `(transcript_id, speaker_index)`
 
 ## Configuration
 
-### Environment Variables
-
 ```bash
-# Transcription API
-TRANSCRIPTION_API_KEY=your_api_key
+TRANSCRIPTION_API_KEY=<deepgram_key>
 TRANSCRIPTION_API_BASE_URL=https://api.deepgram.com/v1
 
-# LLM API
-LLM_API_KEY=your_api_key
+LLM_API_KEY=<openai_key>
 LLM_API_BASE_URL=https://api.openai.com/v1
 ```
 
-## Cost Optimization
+## Cost Analysis
 
-**Transcription API** (Deepgram)
-- Called: Once per episode
-- Cached: Forever in DB
-- Cost: ~$0.0125/minute
+| Service            | Frequency            | Cost          | Cache     |
+| ------------------ | -------------------- | ------------- | --------- |
+| Deepgram           | Once/episode         | ~$0.0125/min  | Permanent |
+| OpenAI gpt-4o-mini | Once/speaker/episode | ~$0.0001/call | Permanent |
 
-**LLM API** (OpenAI gpt-4o-mini)
-- Called: Once per unique speaker per episode
-- Cached: Forever in DB
-- Cost: ~$0.0001/request (2-5 speakers typical)
-
-**Total**: ~$1.25 per 100 minutes of podcast (first time), $0 after caching
+**Example**: 100-minute podcast with 3 speakers = $1.25 + $0.0003 = **$1.25 first request, $0 cached**
