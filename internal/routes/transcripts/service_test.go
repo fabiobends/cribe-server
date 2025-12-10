@@ -84,11 +84,7 @@ func TestTranscriptService_StreamTranscript(t *testing.T) {
 
 type mockFailingTranscriptionClient struct{}
 
-func (m *mockFailingTranscriptionClient) StreamAudioURL(ctx context.Context, audioURL string, opts transcription.StreamOptions, callback transcription.StreamCallback) error {
-	return fmt.Errorf("transcription API error")
-}
-
-func (m *mockFailingTranscriptionClient) StreamAudioURLWebSocket(ctx context.Context, audioURL string, opts transcription.StreamOptions, callback transcription.StreamCallback) error {
+func (m *mockFailingTranscriptionClient) StreamAudioURL(audioURL string, callback transcription.StreamCallback) error {
 	return fmt.Errorf("transcription API error")
 }
 
@@ -194,11 +190,7 @@ type customMockTranscriptionClient struct {
 	wordCount int
 }
 
-func (m *customMockTranscriptionClient) StreamAudioURL(ctx context.Context, audioURL string, opts transcription.StreamOptions, callback transcription.StreamCallback) error {
-	return m.StreamAudioURLWebSocket(ctx, audioURL, opts, callback)
-}
-
-func (m *customMockTranscriptionClient) StreamAudioURLWebSocket(ctx context.Context, audioURL string, opts transcription.StreamOptions, callback transcription.StreamCallback) error {
+func (m *customMockTranscriptionClient) StreamAudioURL(audioURL string, callback transcription.StreamCallback) error {
 	for i := 0; i < m.wordCount; i++ {
 		response := &transcription.StreamResponse{
 			Type: "Results",
