@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"cribeapp.com/cribe-server/internal/clients/llm"
 	"cribeapp.com/cribe-server/internal/clients/transcription"
 	"cribeapp.com/cribe-server/internal/core/logger"
 	"cribeapp.com/cribe-server/internal/utils"
@@ -49,8 +50,12 @@ func (m *MockTranscriptionClient) StreamAudioURL(audioURL string, callback trans
 
 type MockLLMClient struct{}
 
-func (m *MockLLMClient) InferSpeakerName(ctx context.Context, episodeDescription string, speakerIndex int, transcriptChunks []string) (string, error) {
-	return "Speaker 0", nil
+func (m *MockLLMClient) Chat(ctx context.Context, req llm.ChatRequest) (llm.ChatCompletionResponse, error) {
+	return llm.ChatCompletionResponse{
+		Choices: []llm.Choice{
+			{Message: llm.Message{Content: "Speaker 0"}},
+		},
+	}, nil
 }
 
 // setupMockedService creates a service with mocked repository for testing
@@ -175,6 +180,49 @@ func TestTranscriptHandler_HandleRequest(t *testing.T) {
 			t.Errorf("Expected status code %v, got %v", http.StatusInternalServerError, w.Code)
 		}
 	})
+
+	t.Run("should return error when streaming is unsupported", func(t *testing.T) {
+		service := setupMockedService()
+		handler := NewTranscriptHandler(service)
+
+		// Use a custom ResponseWriter that doesn't implement http.Flusher
+		w := &nonFlushableResponseWriter{
+			headers: make(http.Header),
+			body:    []byte{},
+		}
+		r := httptest.NewRequest(http.MethodGet, "/transcripts/stream/sse?episode_id=1", nil)
+
+		handler.HandleRequest(w, r)
+
+		if w.statusCode != http.StatusInternalServerError {
+			t.Errorf("Expected status code %v, got %v", http.StatusInternalServerError, w.statusCode)
+		}
+
+		// Check error message
+		if !strings.Contains(string(w.body), "Streaming unsupported") {
+			t.Errorf("Expected error message to contain 'Streaming unsupported', got %s", string(w.body))
+		}
+	})
+}
+
+// nonFlushableResponseWriter is a ResponseWriter that doesn't implement http.Flusher
+type nonFlushableResponseWriter struct {
+	headers    http.Header
+	body       []byte
+	statusCode int
+}
+
+func (w *nonFlushableResponseWriter) Header() http.Header {
+	return w.headers
+}
+
+func (w *nonFlushableResponseWriter) Write(b []byte) (int, error) {
+	w.body = append(w.body, b...)
+	return len(b), nil
+}
+
+func (w *nonFlushableResponseWriter) WriteHeader(statusCode int) {
+	w.statusCode = statusCode
 }
 
 func TestTranscriptHandler_SSEEvents(t *testing.T) {

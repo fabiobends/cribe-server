@@ -14,6 +14,11 @@ import (
 	"cribeapp.com/cribe-server/internal/utils"
 )
 
+// LLMClient interface defines the methods required by services
+type LLMClient interface {
+	Chat(ctx context.Context, req ChatRequest) (ChatCompletionResponse, error)
+}
+
 // NewClient creates a new LLM client
 func NewClient() *Client {
 	log := logger.NewServiceLogger("LLMClient")
@@ -43,75 +48,47 @@ func NewClient() *Client {
 	}
 }
 
-// InferSpeakerName uses AI to infer the speaker's name
-func (c *Client) InferSpeakerName(ctx context.Context, episodeDescription string, speakerIndex int, transcriptChunks []string) (string, error) {
-	// Build context from transcript chunks (includes before/during/after speaker talks)
-	chunksText := ""
-	maxChunks := min(len(transcriptChunks), 200) // Limit to avoid token limits
-	for i := range maxChunks {
-		chunksText += transcriptChunks[i] + " "
+// setRequestHeaders sets common headers for LLM API requests
+func (c *Client) setRequestHeaders(req *http.Request) {
+	req.Header.Set("Authorization", "Bearer "+c.apiKey)
+	req.Header.Set("Content-Type", "application/json")
+}
+
+// Chat request to LLM client
+func (c *Client) Chat(ctx context.Context, req ChatRequest) (ChatCompletionResponse, error) {
+	// Build internal request with infrastructure details
+	internalReq := chatCompletionRequest{
+		Model:       DefaultChatModel,
+		Messages:    req.Messages,
+		Temperature: DefaultTemperature,
+		MaxTokens:   req.MaxTokens,
 	}
 
-	// Create prompt for speaker inference
-	systemPrompt := "You are an expert at identifying speakers in podcast transcripts. Look for explicit name mentions in the text (e.g., 'this is John', 'I'm Sarah', 'talking with Mike'). Return ONLY the person's name."
-
-	userPrompt := fmt.Sprintf(`Episode description:
-%s
-
-Transcript excerpt with context around speaker %d:
-%s
-
-Instructions:
-- Look for the speaker's name mentioned BEFORE they speak (introductions)
-- Look for the speaker's name mentioned WHILE they speak (self-introduction)
-- Look for the speaker's name mentioned AFTER they speak (references)
-- Common patterns: "I'm [name]", "this is [name]", "with [name]", "[name] said"
-
-Who is speaker %d? Return only their full name (e.g., "John Smith"). If uncertain, return "Speaker %d".`,
-		episodeDescription, speakerIndex, chunksText, speakerIndex, speakerIndex)
-
-	// Create request
-	reqBody := ChatCompletionRequest{
-		Model: "gpt-4o-mini", // Cheapest model
-		Messages: []Message{
-			{Role: "system", Content: systemPrompt},
-			{Role: "user", Content: userPrompt},
-		},
-		Temperature: 0.3, // Low temperature for more deterministic results
-		MaxTokens:   50,  // We only need a name
-	}
-
-	jsonBody, err := utils.EncodeToJSON(reqBody)
+	jsonBody, err := utils.EncodeToJSON(internalReq)
 	if err != nil {
 		c.log.Error("Failed to marshal LLM request", map[string]any{
 			"error": err.Error(),
 		})
-		return "", fmt.Errorf("failed to marshal request: %w", err)
+		return ChatCompletionResponse{}, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/chat/completions", bytes.NewReader(jsonBody))
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/chat/completions", bytes.NewReader(jsonBody))
 	if err != nil {
 		c.log.Error("Failed to create LLM request", map[string]any{
 			"error": err.Error(),
 		})
-		return "", fmt.Errorf("failed to create request: %w", err)
+		return ChatCompletionResponse{}, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	req.Header.Set("Authorization", "Bearer "+c.apiKey)
-	req.Header.Set("Content-Type", "application/json")
-
-	c.log.Info("Inferring speaker name", map[string]any{
-		"speakerIndex": speakerIndex,
-		"chunksCount":  len(transcriptChunks),
-	})
+	c.setRequestHeaders(httpReq)
 
 	// Send request
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
-		c.log.Error("Failed to send inference request", map[string]any{
+		c.log.Error("Failed to send LLM request", map[string]any{
 			"error": err.Error(),
 		})
-		return "", fmt.Errorf("failed to send request: %w", err)
+		return ChatCompletionResponse{}, fmt.Errorf("failed to send request: %w", err)
 	}
 	defer func() {
 		if closeErr := resp.Body.Close(); closeErr != nil {
@@ -127,7 +104,7 @@ Who is speaker %d? Return only their full name (e.g., "John Smith"). If uncertai
 			"statusCode": resp.StatusCode,
 			"response":   string(body),
 		})
-		return "", fmt.Errorf("LLM API error: status=%d, body=%s", resp.StatusCode, string(body))
+		return ChatCompletionResponse{}, fmt.Errorf("LLM API error: status=%d, body=%s", resp.StatusCode, string(body))
 	}
 
 	// Parse response
@@ -136,21 +113,8 @@ Who is speaker %d? Return only their full name (e.g., "John Smith"). If uncertai
 		c.log.Error("Failed to decode LLM response", map[string]any{
 			"error": err.Error(),
 		})
-		return "", fmt.Errorf("failed to decode response: %w", err)
+		return ChatCompletionResponse{}, fmt.Errorf("failed to decode response: %w", err)
 	}
 
-	if len(chatResp.Choices) == 0 {
-		c.log.Error("LLM API returned no choices", nil)
-		return "", fmt.Errorf("no choices returned from LLM API")
-	}
-
-	speakerName := chatResp.Choices[0].Message.Content
-
-	c.log.Info("Speaker name inferred", map[string]any{
-		"speakerIndex": speakerIndex,
-		"speakerName":  speakerName,
-		"tokensUsed":   chatResp.Usage.TotalTokens,
-	})
-
-	return speakerName, nil
+	return chatResp, nil
 }
