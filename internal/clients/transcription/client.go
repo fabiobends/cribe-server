@@ -14,6 +14,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"cribeapp.com/cribe-server/internal/core/logger"
+	"cribeapp.com/cribe-server/internal/utils"
 )
 
 // NewClient creates a new transcription client
@@ -198,8 +199,8 @@ func (c *Client) readTranscriptionResults(ctx context.Context, conn *websocket.C
 			})
 		}
 
-		var resp StreamResponse
-		if err := json.Unmarshal(message, &resp); err != nil {
+		resp, err := utils.DecodeResponse[StreamResponse](string(message))
+		if err != nil {
 			c.log.Error("Failed to unmarshal WebSocket message", map[string]any{
 				"error":   err.Error(),
 				"message": string(message),

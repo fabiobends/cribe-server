@@ -3,6 +3,8 @@ package transcripts
 import (
 	"context"
 	"fmt"
+	"reflect"
+	"strings"
 	"sync"
 	"time"
 
@@ -16,36 +18,67 @@ type TranscriptionClientInterface interface {
 	StreamAudioURL(audioURL string, callback transcription.StreamCallback) error
 }
 
-// LLMClientInterface defines the contract for LLM clients
-type LLMClientInterface interface {
-	InferSpeakerName(ctx context.Context, episodeDescription string, speakerIndex int, transcriptChunks []string) (string, error)
-}
-
 // Service handles transcript business logic
 type Service struct {
 	repo                *TranscriptRepository
 	transcriptionClient TranscriptionClientInterface
-	llmClient           LLMClientInterface
+	llmClient           llm.LLMClient
 	log                 *logger.ContextualLogger
 }
 
-// NewServiceReady creates a new transcript service with environment configuration
-func NewServiceReady() *Service {
-
-	transcriptionClient := transcription.NewClient()
-	llmClient := llm.NewClient()
-
-	return NewService(transcriptionClient, llmClient)
-}
-
 // NewService creates a new transcript service
-func NewService(transcriptionClient TranscriptionClientInterface, llmClient LLMClientInterface) *Service {
+func NewService(transcriptionClient TranscriptionClientInterface, llmClient llm.LLMClient) *Service {
 	return &Service{
 		repo:                NewTranscriptRepository(),
 		transcriptionClient: transcriptionClient,
 		llmClient:           llmClient,
 		log:                 logger.NewServiceLogger("TranscriptService"),
 	}
+}
+
+// inferSpeakerName uses LLM to infer speaker name with proper timeout handling
+func (s *Service) inferSpeakerName(episodeDescription string, speakerIndex int, transcriptChunks []string) (string, error) {
+	// If LLM client is not available (nil interface or nil pointer), return default speaker name
+	if s.llmClient == nil || reflect.ValueOf(s.llmClient).IsNil() {
+		return fmt.Sprintf("Speaker %d", speakerIndex), nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// Build context from transcript chunks
+	var chunksText strings.Builder
+	maxChunks := min(len(transcriptChunks), 200)
+	for i := range maxChunks {
+		chunksText.WriteString(transcriptChunks[i] + " ")
+	}
+
+	// Create request
+	reqBody := llm.ChatRequest{
+		Messages: []llm.Message{
+			{Role: "system", Content: InferSpeakerNameSystemPrompt},
+			{Role: "user", Content: InferSpeakerNameUserPrompt(episodeDescription, speakerIndex, chunksText.String())},
+		},
+		MaxTokens: 50,
+	}
+
+	response, err := s.llmClient.Chat(ctx, reqBody)
+	if err != nil {
+		return "", err
+	}
+
+	if len(response.Choices) == 0 {
+		s.log.Warn("No choices returned from LLM", nil)
+		return fmt.Sprintf("Speaker %d", speakerIndex), nil
+	}
+
+	// Extract and clean the name
+	name := strings.TrimSpace(response.Choices[0].Message.Content)
+	if name == "" || strings.HasPrefix(name, "Speaker") {
+		return fmt.Sprintf("Speaker %d", speakerIndex), nil
+	}
+
+	return name, nil
 }
 
 // ChunkCallback is called for each transcript chunk
@@ -264,7 +297,7 @@ func (s *Service) streamFromTranscriptionAPI(episodeId int, audioURL, episodeDes
 				})
 
 				go func(idx int, words []string) {
-					name, err := s.llmClient.InferSpeakerName(context.Background(), episodeDesc, idx, words)
+					name, err := s.inferSpeakerName(episodeDesc, idx, words)
 					if err != nil {
 						s.log.Error("Failed early speaker inference", map[string]any{
 							"error":        err.Error(),
@@ -378,7 +411,7 @@ func (s *Service) saveTranscriptInBackground(transcriptID int, chunks []Chunk, s
 			defer wg.Done()
 
 			// Use background context to prevent cancellation
-			speakerName, err := s.llmClient.InferSpeakerName(context.Background(), episodeDesc, idx, words)
+			speakerName, err := s.inferSpeakerName(episodeDesc, idx, words)
 			if err != nil {
 				s.log.Error("Failed to infer speaker name", map[string]any{
 					"error":        err.Error(),

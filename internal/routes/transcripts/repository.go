@@ -2,6 +2,7 @@ package transcripts
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"cribeapp.com/cribe-server/internal/core/logger"
@@ -217,20 +218,21 @@ func (r *TranscriptRepository) SaveChunksBatched(transcriptID int, chunks []Chun
 		batch := chunks[i:end]
 
 		// Build multi-row INSERT
-		query := `INSERT INTO transcript_chunks (transcript_id, position, speaker_index, start_time, end_time, text) VALUES `
+		var query strings.Builder
+		query.WriteString(`INSERT INTO transcript_chunks (transcript_id, position, speaker_index, start_time, end_time, text) VALUES `)
 		args := make([]any, 0, len(batch)*6)
 
 		for j, chunk := range batch {
 			if j > 0 {
-				query += ", "
+				query.WriteString(", ")
 			}
 			offset := j * 6
-			query += fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, $%d)", offset+1, offset+2, offset+3, offset+4, offset+5, offset+6)
+			query.WriteString(fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, $%d)", offset+1, offset+2, offset+3, offset+4, offset+5, offset+6))
 			args = append(args, transcriptID, chunk.Position, chunk.SpeakerIndex, chunk.Start, chunk.End, chunk.Text)
 		}
-		query += " ON CONFLICT (transcript_id, position) DO NOTHING"
+		query.WriteString(" ON CONFLICT (transcript_id, position) DO NOTHING")
 
-		err := r.chunkRepo.Executor.Exec(query, args...)
+		err := r.chunkRepo.Executor.Exec(query.String(), args...)
 		if err != nil {
 			r.logger.Error("Failed to save chunk batch", map[string]any{
 				"transcriptID": transcriptID,

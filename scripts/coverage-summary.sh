@@ -6,6 +6,15 @@ if [ ! -f coverage.out ]; then
     exit 1
 fi
 
+echo "📊 Filtering coverage data..."
+# Filter out files we want to exclude from coverage
+grep -v "internal/utils/tests.go" coverage.out | \
+grep -v "prompts.go" | \
+grep -v "mocks.go" > coverage.filtered.out
+
+# Replace the original with filtered version
+mv coverage.filtered.out coverage.out
+
 echo "📊 Go Test Coverage Summary"
 echo "================================"
 
@@ -35,4 +44,4 @@ echo "📊 Coverage data generated at coverage.out"
 echo "📊 Generating HTML coverage report..."
 go tool cover -html=coverage.out -o coverage.html
 echo "📊 HTML coverage report generated at coverage.html"
-echo "💡 Files with //go:build !test tags are excluded from coverage"
+echo "💡 Excluded files: prompts.go, mocks.go, internal/utils/tests.go and files with //go:build !test tags"

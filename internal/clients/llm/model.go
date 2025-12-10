@@ -6,6 +6,12 @@ import (
 	"cribeapp.com/cribe-server/internal/core/logger"
 )
 
+const (
+	// Default models for different use cases
+	DefaultChatModel   = "gpt-4o-mini" // For general chat/inference
+	DefaultTemperature = 0.7           // Default creativity level
+)
+
 // Client handles LLM API interactions
 type Client struct {
 	apiKey     string
@@ -20,8 +26,14 @@ type Message struct {
 	Content string `json:"content"`
 }
 
-// ChatCompletionRequest represents the LLM request
-type ChatCompletionRequest struct {
+// ChatRequest is the service-level request (infrastructure-agnostic)
+type ChatRequest struct {
+	Messages  []Message `json:"messages"`
+	MaxTokens int       `json:"max_tokens,omitempty"`
+}
+
+// chatCompletionRequest is the internal OpenAI-specific request
+type chatCompletionRequest struct {
 	Model       string    `json:"model"`
 	Messages    []Message `json:"messages"`
 	Temperature float64   `json:"temperature,omitempty"`

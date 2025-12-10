@@ -86,9 +86,11 @@ should_skip_test_check() {
     case "$file" in
         *_test.go) return 0 ;;  # Skip test files themselves
         cmd/app/main.go) return 0 ;;  # Skip main entry point
-        */mock_*.go) return 0 ;;  # Skip mock files
         *.pb.go) return 0 ;;  # Skip protobuf generated files
         internal/core/router.go) return 0 ;;  # Skip core router
+        internal/utils/tests.go) return 0 ;;  # Skip utility test helpers
+        */prompts.go) return 0 ;;  # Skip prompt definition files
+        */mocks.go) return 0 ;;  # Skip mock definition files
         */model.go) return 0 ;;  # Skip model files
     esac
     return 1
