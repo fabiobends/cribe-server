@@ -14,7 +14,7 @@ import (
 
 type MockTranscriptionClient struct{}
 
-func (m *MockTranscriptionClient) StreamAudioURL(ctx context.Context, audioURL string, opts transcription.StreamOptions, callback transcription.StreamCallback) error {
+func (m *MockTranscriptionClient) StreamAudioURL(audioURL string, callback transcription.StreamCallback) error {
 	// Simulate streaming a few chunks
 	response := &transcription.StreamResponse{
 		Type: "Results",
@@ -45,11 +45,6 @@ func (m *MockTranscriptionClient) StreamAudioURL(ctx context.Context, audioURL s
 		return err
 	}
 	return nil
-}
-
-func (m *MockTranscriptionClient) StreamAudioURLWebSocket(ctx context.Context, audioURL string, opts transcription.StreamOptions, callback transcription.StreamCallback) error {
-	// Use the same mock implementation as StreamAudioURL
-	return m.StreamAudioURL(ctx, audioURL, opts, callback)
 }
 
 type MockLLMClient struct{}

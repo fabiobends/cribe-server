@@ -13,7 +13,7 @@ import (
 
 // TranscriptionClientInterface defines the contract for transcription clients
 type TranscriptionClientInterface interface {
-	StreamAudioURLWebSocket(ctx context.Context, audioURL string, opts transcription.StreamOptions, callback transcription.StreamCallback) error
+	StreamAudioURL(audioURL string, callback transcription.StreamCallback) error
 }
 
 // LLMClientInterface defines the contract for LLM clients
@@ -197,9 +197,6 @@ func (s *Service) streamFromTranscriptionAPI(episodeId int, audioURL, episodeDes
 		speakerChunks   = make(map[int][]string)
 	)
 
-	// Use background context for WebSocket so it continues even if client disconnects
-	bgCtx := context.Background()
-
 	transcriptID, err := s.createTranscript(episodeId)
 
 	if err != nil {
@@ -209,14 +206,8 @@ func (s *Service) streamFromTranscriptionAPI(episodeId int, audioURL, episodeDes
 		return fmt.Errorf("failed to create transcript record: %w", err)
 	}
 
-	// Stream from transcription API using WebSocket for real-time results
-	err = s.transcriptionClient.StreamAudioURLWebSocket(bgCtx, audioURL, transcription.StreamOptions{
-		Model:      "nova-3",
-		Language:   "en",
-		Diarize:    true,
-		Punctuate:  true,
-		Utterances: false,
-	}, func(response *transcription.StreamResponse) error {
+	// Stream from transcription API (client handles context and options internally)
+	err = s.transcriptionClient.StreamAudioURL(audioURL, func(response *transcription.StreamResponse) error {
 		if len(response.Channel.Alternatives) == 0 {
 			return nil
 		}

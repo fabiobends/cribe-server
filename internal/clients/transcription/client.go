@@ -2,7 +2,6 @@ package transcription
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -15,7 +14,6 @@ import (
 	"github.com/gorilla/websocket"
 
 	"cribeapp.com/cribe-server/internal/core/logger"
-	"cribeapp.com/cribe-server/internal/utils"
 )
 
 // NewClient creates a new transcription client
@@ -47,71 +45,22 @@ func NewClient() *Client {
 	}
 }
 
-// StreamAudioURL streams audio from a URL and processes transcription
-func (c *Client) StreamAudioURL(ctx context.Context, audioURL string, opts StreamOptions, callback StreamCallback) error {
-	// Build query parameters
-	q := url.Values{}
-	q.Set("model", opts.Model)
-	q.Set("language", opts.Language)
-	q.Set("diarize", fmt.Sprintf("%t", opts.Diarize))
-	q.Set("punctuate", fmt.Sprintf("%t", opts.Punctuate))
-	q.Set("utterances", fmt.Sprintf("%t", opts.Utterances))
+// StreamAudioURL is the service-level method - streams audio from URL with default settings
+// Service only needs to pass audioURL and callback, client handles all infrastructure
+func (c *Client) StreamAudioURL(audioURL string, callback StreamCallback) error {
+	// Use background context so transcription continues even if client disconnects
+	ctx := context.Background()
 
-	// Create request
-	reqURL := fmt.Sprintf("%s/listen?%s", c.baseURL, q.Encode())
-
-	reqBody := map[string]string{"url": audioURL}
-	jsonBody, err := utils.EncodeToJSON(reqBody)
-	if err != nil {
-		c.log.Error("Failed to marshal transcription request", map[string]any{
-			"error": err.Error(),
-		})
-		return fmt.Errorf("failed to marshal request: %w", err)
+	// Default options configured in client
+	opts := StreamOptions{
+		Model:      "nova-3",
+		Language:   "en",
+		Diarize:    true,
+		Punctuate:  true,
+		Utterances: false,
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", reqURL, bytes.NewReader(jsonBody))
-	if err != nil {
-		c.log.Error("Failed to create transcription request", map[string]any{
-			"error": err.Error(),
-		})
-		return fmt.Errorf("failed to create request: %w", err)
-	}
-
-	req.Header.Set("Authorization", "Token "+c.apiKey)
-	req.Header.Set("Content-Type", "application/json")
-
-	c.log.Info("Streaming audio transcription", map[string]any{
-		"audioURL": audioURL,
-		"model":    opts.Model,
-	})
-
-	// Send request
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		c.log.Error("Failed to send transcription request", map[string]any{
-			"error": err.Error(),
-		})
-		return fmt.Errorf("failed to send request: %w", err)
-	}
-	defer func() {
-		if closeErr := resp.Body.Close(); closeErr != nil {
-			c.log.Error("Failed to close response body", map[string]any{
-				"error": closeErr.Error(),
-			})
-		}
-	}()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		c.log.Error("Transcription API returned error", map[string]any{
-			"statusCode": resp.StatusCode,
-			"response":   string(body),
-		})
-		return fmt.Errorf("transcription API error: status=%d, body=%s", resp.StatusCode, string(body))
-	}
-
-	// Process streaming response
-	return c.processStreamingResponse(resp.Body, callback)
+	return c.StreamAudioURLWebSocket(ctx, audioURL, opts, callback)
 }
 
 // buildWebSocketURL constructs a WebSocket URL with query parameters for Deepgram API

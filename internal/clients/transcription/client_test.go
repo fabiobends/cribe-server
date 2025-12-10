@@ -56,69 +56,6 @@ func TestNewClient(t *testing.T) {
 	}
 }
 
-func TestStreamAudioURL(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		response := StreamResponse{
-			Type: "Results",
-			Results: Results{
-				Channels: []Channel{{Alternatives: []Alternative{{
-					Words: []Word{{Word: "test", PunctuatedWord: "test", Start: 0.0, End: 0.5, Speaker: 0}},
-				}}}},
-			},
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(response)
-		_ = json.NewEncoder(w).Encode(response)
-	}))
-	defer server.Close()
-
-	client := &Client{
-		apiKey:     "test-key",
-		baseURL:    server.URL,
-		httpClient: &http.Client{},
-		log:        logger.NewServiceLogger("TestClient"),
-	}
-
-	callbackCount := 0
-	err := client.StreamAudioURL(
-		context.Background(),
-		"https://example.com/audio.mp3",
-		StreamOptions{Model: "nova-3", Language: "en", Diarize: true, Punctuate: true},
-		func(response *StreamResponse) error {
-			callbackCount++
-			return nil
-		},
-	)
-
-	if err != nil || callbackCount != 2 {
-		t.Errorf("Expected no error and 2 callbacks, got err=%v, count=%d", err, callbackCount)
-	}
-}
-
-func TestStreamAudioURL_RequestCreationError(t *testing.T) {
-	client := &Client{
-		apiKey:     "test-key",
-		baseURL:    ":\n\n\t\tinvalid-url", // Invalid URL to trigger NewRequestWithContext error
-		httpClient: &http.Client{},
-		log:        logger.NewServiceLogger("TestClient"),
-	}
-
-	ctx := context.Background()
-	err := client.StreamAudioURL(
-		ctx,
-		"https://example.com/audio.mp3",
-		StreamOptions{Model: "nova-3"},
-		func(response *StreamResponse) error { return nil },
-	)
-
-	if err == nil {
-		t.Fatal("Expected error when baseURL is invalid, got nil")
-	}
-	if !strings.Contains(err.Error(), "failed to create request") {
-		t.Errorf("Expected 'failed to create request' error, got: %v", err)
-	}
-}
-
 func TestBuildWebSocketURL(t *testing.T) {
 	client := &Client{
 		baseURL: "https://api.deepgram.com/v1/listen",
@@ -429,6 +366,225 @@ func TestStreamAudioURLWebSocket(t *testing.T) {
 
 		if err == nil {
 			t.Error("Expected callback error to be propagated")
+		}
+	})
+}
+
+func TestProcessStreamingResponse(t *testing.T) {
+	t.Run("success with valid responses", func(t *testing.T) {
+		responses := []StreamResponse{
+			{
+				Type:    "Results",
+				IsFinal: true,
+				Results: struct {
+					Channels []Channel `json:"channels"`
+				}{
+					Channels: []Channel{
+						{
+							Alternatives: []Alternative{
+								{Words: []Word{{Word: "hello", PunctuatedWord: "Hello", Start: 0.0, End: 0.5, Speaker: 0}}},
+							},
+						},
+					},
+				},
+			},
+			{
+				Type:    "Results",
+				IsFinal: true,
+				Results: struct {
+					Channels []Channel `json:"channels"`
+				}{
+					Channels: []Channel{
+						{
+							Alternatives: []Alternative{
+								{Words: []Word{{Word: "world", PunctuatedWord: "world", Start: 0.5, End: 1.0, Speaker: 1}}},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		var jsonData strings.Builder
+		for _, resp := range responses {
+			data, _ := json.Marshal(resp)
+			jsonData.Write(data)
+			jsonData.WriteString("\n")
+		}
+
+		client := &Client{log: logger.NewServiceLogger("TestClient")}
+		callbackCount := 0
+		totalWords := 0
+
+		err := client.processStreamingResponse(strings.NewReader(jsonData.String()), func(resp *StreamResponse) error {
+			callbackCount++
+			if len(resp.Results.Channels) > 0 && len(resp.Results.Channels[0].Alternatives) > 0 {
+				totalWords += len(resp.Results.Channels[0].Alternatives[0].Words)
+			}
+			return nil
+		})
+
+		if err != nil {
+			t.Errorf("Expected no error, got %v", err)
+		}
+		if callbackCount != 2 {
+			t.Errorf("Expected 2 callbacks, got %d", callbackCount)
+		}
+		if totalWords != 2 {
+			t.Errorf("Expected 2 words processed, got %d", totalWords)
+		}
+	})
+
+	t.Run("skips responses without alternatives", func(t *testing.T) {
+		responses := []StreamResponse{
+			{Type: "Results", IsFinal: true, Results: struct {
+				Channels []Channel `json:"channels"`
+			}{Channels: []Channel{}}},
+			{Type: "Results", IsFinal: true, Results: struct {
+				Channels []Channel `json:"channels"`
+			}{Channels: []Channel{{Alternatives: []Alternative{}}}}},
+			{
+				Type:    "Results",
+				IsFinal: true,
+				Results: struct {
+					Channels []Channel `json:"channels"`
+				}{
+					Channels: []Channel{
+						{
+							Alternatives: []Alternative{
+								{Words: []Word{{Word: "valid", PunctuatedWord: "valid", Start: 0.0, End: 0.5, Speaker: 0}}},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		var jsonData strings.Builder
+		for _, resp := range responses {
+			data, _ := json.Marshal(resp)
+			jsonData.Write(data)
+			jsonData.WriteString("\n")
+		}
+
+		client := &Client{log: logger.NewServiceLogger("TestClient")}
+		callbackCount := 0
+
+		err := client.processStreamingResponse(strings.NewReader(jsonData.String()), func(resp *StreamResponse) error {
+			callbackCount++
+			return nil
+		})
+
+		if err != nil {
+			t.Errorf("Expected no error, got %v", err)
+		}
+		if callbackCount != 1 {
+			t.Errorf("Expected 1 callback (only valid response), got %d", callbackCount)
+		}
+	})
+
+	t.Run("handles callback error", func(t *testing.T) {
+		response := StreamResponse{
+			Type:    "Results",
+			IsFinal: true,
+			Results: struct {
+				Channels []Channel `json:"channels"`
+			}{
+				Channels: []Channel{
+					{
+						Alternatives: []Alternative{
+							{Words: []Word{{Word: "test", PunctuatedWord: "test", Start: 0.0, End: 0.5, Speaker: 0}}},
+						},
+					},
+				},
+			},
+		}
+
+		jsonData, _ := json.Marshal(response)
+		client := &Client{log: logger.NewServiceLogger("TestClient")}
+
+		expectedErr := fmt.Errorf("callback processing error")
+		err := client.processStreamingResponse(strings.NewReader(string(jsonData)), func(resp *StreamResponse) error {
+			return expectedErr
+		})
+
+		if err == nil || err.Error() != expectedErr.Error() {
+			t.Errorf("Expected callback error to be returned, got %v", err)
+		}
+	})
+
+	t.Run("handles invalid JSON", func(t *testing.T) {
+		invalidJSON := `{"type": "Results", "is_final": true, invalid json}`
+		client := &Client{log: logger.NewServiceLogger("TestClient")}
+
+		err := client.processStreamingResponse(strings.NewReader(invalidJSON), func(resp *StreamResponse) error {
+			return nil
+		})
+
+		if err == nil || !strings.Contains(err.Error(), "failed to decode streamed response") {
+			t.Errorf("Expected decode error, got %v", err)
+		}
+	})
+
+	t.Run("handles empty stream (EOF)", func(t *testing.T) {
+		client := &Client{log: logger.NewServiceLogger("TestClient")}
+		callbackCount := 0
+
+		err := client.processStreamingResponse(strings.NewReader(""), func(resp *StreamResponse) error {
+			callbackCount++
+			return nil
+		})
+
+		if err != nil {
+			t.Errorf("Expected no error on EOF, got %v", err)
+		}
+		if callbackCount != 0 {
+			t.Errorf("Expected 0 callbacks on empty stream, got %d", callbackCount)
+		}
+	})
+
+	t.Run("processes multiple words in single response", func(t *testing.T) {
+		response := StreamResponse{
+			Type:    "Results",
+			IsFinal: true,
+			Results: struct {
+				Channels []Channel `json:"channels"`
+			}{
+				Channels: []Channel{
+					{
+						Alternatives: []Alternative{
+							{
+								Words: []Word{
+									{Word: "hello", PunctuatedWord: "Hello", Start: 0.0, End: 0.5, Speaker: 0},
+									{Word: "world", PunctuatedWord: "world", Start: 0.5, End: 1.0, Speaker: 0},
+									{Word: "test", PunctuatedWord: "test", Start: 1.0, End: 1.5, Speaker: 1},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		jsonData, _ := json.Marshal(response)
+		client := &Client{log: logger.NewServiceLogger("TestClient")}
+		var receivedWords []Word
+
+		err := client.processStreamingResponse(strings.NewReader(string(jsonData)), func(resp *StreamResponse) error {
+			if len(resp.Results.Channels) > 0 && len(resp.Results.Channels[0].Alternatives) > 0 {
+				receivedWords = resp.Results.Channels[0].Alternatives[0].Words
+			}
+			return nil
+		})
+
+		if err != nil {
+			t.Errorf("Expected no error, got %v", err)
+		}
+		if len(receivedWords) != 3 {
+			t.Errorf("Expected 3 words, got %d", len(receivedWords))
+		}
+		if receivedWords[0].Word != "hello" || receivedWords[1].Word != "world" || receivedWords[2].Word != "test" {
+			t.Errorf("Unexpected word sequence: %v", receivedWords)
 		}
 	})
 }
