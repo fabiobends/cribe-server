@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -47,10 +48,7 @@ func NewClient() *Client {
 }
 
 // StreamAudioURL is the service-level method - streams audio from URL with default settings
-// Service only needs to pass audioURL and callback, client handles all infrastructure
-func (c *Client) StreamAudioURL(audioURL string, callback StreamCallback) error {
-	// Use background context so transcription continues even if client disconnects
-	ctx := context.Background()
+func (c *Client) StreamAudioURL(ctx context.Context, audioURL string, callback StreamCallback) error {
 
 	// Default options configured in client
 	opts := StreamOptions{
@@ -224,9 +222,14 @@ func (c *Client) readTranscriptionResults(ctx context.Context, conn *websocket.C
 		}
 
 		if err := callback(&resp); err != nil {
-			c.log.Error("Callback error processing WebSocket response", map[string]any{
-				"error": err.Error(),
-			})
+			// Context cancellation is expected when client disconnects
+			if errors.Is(err, context.Canceled) {
+				c.log.Info("Transcription callback stopped (client disconnected)", nil)
+			} else {
+				c.log.Error("Callback error processing WebSocket response", map[string]any{
+					"error": err.Error(),
+				})
+			}
 			errCh <- err
 			return
 		}

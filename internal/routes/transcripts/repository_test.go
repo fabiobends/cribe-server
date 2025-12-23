@@ -103,7 +103,7 @@ func TestTranscriptRepository_UpdateTranscriptStatus(t *testing.T) {
 		repo := NewTranscriptRepository()
 		repo.transcriptRepo.Executor = mockExecutor
 
-		err := repo.UpdateTranscriptStatus(1, string(TranscriptStatusComplete), "")
+		err := repo.UpdateTranscriptStatus(1, TranscriptStatusComplete, "")
 
 		if err != nil {
 			t.Errorf("Expected no error, got %v", err)
@@ -120,7 +120,7 @@ func TestTranscriptRepository_UpdateTranscriptStatus(t *testing.T) {
 		repo := NewTranscriptRepository()
 		repo.transcriptRepo.Executor = mockExecutor
 
-		err := repo.UpdateTranscriptStatus(1, string(TranscriptStatusFailed), "Test error")
+		err := repo.UpdateTranscriptStatus(1, TranscriptStatusFailed, "Test error")
 
 		if err != nil {
 			t.Errorf("Expected no error, got %v", err)
@@ -137,7 +137,7 @@ func TestTranscriptRepository_UpdateTranscriptStatus(t *testing.T) {
 		repo := NewTranscriptRepository()
 		repo.transcriptRepo.Executor = mockExecutor
 
-		err := repo.UpdateTranscriptStatus(1, string(TranscriptStatusComplete), "")
+		err := repo.UpdateTranscriptStatus(1, TranscriptStatusComplete, "")
 
 		if err == nil {
 			t.Error("Expected error, got nil")

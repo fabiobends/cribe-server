@@ -106,7 +106,7 @@ func (r *TranscriptRepository) CreateTranscript(episodeID int) (int, error) {
 	return transcriptID, nil
 }
 
-func (r *TranscriptRepository) UpdateTranscriptStatus(transcriptID int, status string, errorMessage string) error {
+func (r *TranscriptRepository) UpdateTranscriptStatus(transcriptID int, status TranscriptStatus, errorMessage string) error {
 	r.logger.Debug("Updating transcript status", map[string]any{
 		"transcriptID": transcriptID,
 		"status":       status,
@@ -114,12 +114,12 @@ func (r *TranscriptRepository) UpdateTranscriptStatus(transcriptID int, status s
 
 	var err error
 	switch {
-	case status == string(TranscriptStatusFailed) && errorMessage != "":
+	case status == TranscriptStatusFailed && errorMessage != "":
 		err = r.transcriptRepo.Executor.Exec(
 			`UPDATE transcripts SET status = $1, error_message = $2 WHERE id = $3`,
 			status, errorMessage, transcriptID,
 		)
-	case status == string(TranscriptStatusComplete):
+	case status == TranscriptStatusComplete:
 		err = r.transcriptRepo.Executor.Exec(
 			`UPDATE transcripts SET status = $1, completed_at = NOW() WHERE id = $2`,
 			string(TranscriptStatusComplete), transcriptID,

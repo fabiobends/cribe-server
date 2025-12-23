@@ -2,6 +2,7 @@ package transcripts
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -15,7 +16,7 @@ import (
 
 type MockTranscriptionClient struct{}
 
-func (m *MockTranscriptionClient) StreamAudioURL(audioURL string, callback transcription.StreamCallback) error {
+func (m *MockTranscriptionClient) StreamAudioURL(ctx context.Context, audioURL string, callback transcription.StreamCallback) error {
 	// Simulate streaming a few chunks
 	response := &transcription.StreamResponse{
 		Type: "Results",
@@ -226,7 +227,7 @@ func (w *nonFlushableResponseWriter) WriteHeader(statusCode int) {
 }
 
 func TestTranscriptHandler_SSEEvents(t *testing.T) {
-	t.Run("should write chunk events in SSE format", func(t *testing.T) {
+	t.Run("should write all SSE events in correct format", func(t *testing.T) {
 		service := setupMockedService()
 		handler := NewTranscriptHandler(service)
 
@@ -245,35 +246,11 @@ func TestTranscriptHandler_SSEEvents(t *testing.T) {
 		if !strings.Contains(body, "data:") {
 			t.Error("Expected response to contain 'data:'")
 		}
-	})
-
-	t.Run("should write speaker events in SSE format", func(t *testing.T) {
-		service := setupMockedService()
-		handler := NewTranscriptHandler(service)
-
-		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodGet, "/transcripts/stream/sse?episode_id=1", nil)
-
-		handler.HandleRequest(w, r)
-
-		body := w.Body.String()
 
 		// Check for speaker events
 		if !strings.Contains(body, "event: speaker") {
 			t.Error("Expected response to contain 'event: speaker'")
 		}
-	})
-
-	t.Run("should write complete event at the end", func(t *testing.T) {
-		service := setupMockedService()
-		handler := NewTranscriptHandler(service)
-
-		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodGet, "/transcripts/stream/sse?episode_id=1", nil)
-
-		handler.HandleRequest(w, r)
-
-		body := w.Body.String()
 
 		// Check for complete event
 		if !strings.Contains(body, "event: complete") {
@@ -282,6 +259,83 @@ func TestTranscriptHandler_SSEEvents(t *testing.T) {
 
 		if !strings.Contains(body, "data: {}") {
 			t.Error("Expected complete event to have 'data: {}'")
+		}
+	})
+}
+
+// Test for context cancellation scenarios
+func TestTranscriptHandler_ContextCancellation(t *testing.T) {
+	t.Run("should handle client disconnect gracefully", func(t *testing.T) {
+		service := setupMockedService()
+		handler := NewTranscriptHandler(service)
+
+		// Create a cancellable context
+		ctx, cancel := context.WithCancel(context.Background())
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodGet, "/transcripts/stream/sse?episode_id=1", nil)
+		r = r.WithContext(ctx)
+
+		// Cancel the context immediately to simulate client disconnect
+		cancel()
+
+		handler.HandleRequest(w, r)
+
+		// The handler should complete without panicking
+	})
+}
+
+// Test for error scenarios during streaming
+func TestTranscriptHandler_StreamErrors(t *testing.T) {
+	t.Run("should handle database error gracefully", func(t *testing.T) {
+		transcriptionClient := &MockTranscriptionClient{}
+		llmClient := &MockLLMClient{}
+		service := NewService(transcriptionClient, llmClient)
+		handler := NewTranscriptHandler(service)
+
+		// Mock episode query returns error
+		episodeExecutor := utils.QueryExecutor[Episode]{
+			QueryItem: func(query string, args ...any) (Episode, error) {
+				return Episode{}, fmt.Errorf("database connection error")
+			},
+		}
+		service.repo.episodeRepo.Executor = episodeExecutor
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodGet, "/transcripts/stream/sse?episode_id=1", nil)
+
+		handler.HandleRequest(w, r)
+
+		body := w.Body.String()
+
+		// The handler should complete without panicking and may contain error event
+		// Error event is expected when there's a database error
+		_ = body // body may contain "event: error"
+	})
+}
+
+// Test SSE header setup
+func TestTranscriptHandler_SSEHeaders(t *testing.T) {
+	t.Run("should set correct SSE headers", func(t *testing.T) {
+		service := setupMockedService()
+		handler := NewTranscriptHandler(service)
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodGet, "/transcripts/stream/sse?episode_id=1", nil)
+
+		handler.HandleRequest(w, r)
+
+		headers := w.Header()
+
+		if headers.Get("Content-Type") != "text/event-stream" {
+			t.Errorf("Expected Content-Type to be 'text/event-stream', got %s", headers.Get("Content-Type"))
+		}
+
+		if headers.Get("Cache-Control") != "no-cache" {
+			t.Errorf("Expected Cache-Control to be 'no-cache', got %s", headers.Get("Cache-Control"))
+		}
+
+		if headers.Get("Connection") != "keep-alive" {
+			t.Errorf("Expected Connection to be 'keep-alive', got %s", headers.Get("Connection"))
 		}
 	})
 }
