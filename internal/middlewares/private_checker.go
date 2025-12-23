@@ -11,6 +11,7 @@ var privateRoutes = map[string]bool{
 	"/users":       true,
 	"/podcasts":    true,
 	"/transcripts": true,
+	"/quizzes":     true,
 }
 
 func isPrivateRoute(path string) bool {

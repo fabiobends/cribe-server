@@ -91,7 +91,19 @@ func (h *TranscriptHandler) handleSSEStream(w http.ResponseWriter, r *http.Reque
 	// is slow to read. If a write fails, cancel the context so the
 	// transcription stream can stop promptly.
 	streamCtx, cancel := context.WithCancel(r.Context())
-	defer cancel()
+	defer func() {
+		cancel()
+		select {
+		case <-r.Context().Done():
+			h.log.Info("SSE stream ended (client disconnected)", map[string]any{
+				"episodeID": episodeID,
+			})
+		default:
+			h.log.Info("SSE stream ended (completed normally)", map[string]any{
+				"episodeID": episodeID,
+			})
+		}
+	}()
 
 	eventCh := make(chan string, 512)
 	writeErrCh := make(chan error, 1)
@@ -105,13 +117,24 @@ func (h *TranscriptHandler) handleSSEStream(w http.ResponseWriter, r *http.Reque
 		for {
 			select {
 			case <-streamCtx.Done():
+				h.log.Info("Writer goroutine: context cancelled", map[string]any{
+					"episodeID": episodeID,
+					"reason":    streamCtx.Err(),
+				})
 				return
 			case s, ok := <-eventCh:
 				if !ok {
+					h.log.Debug("Writer goroutine: event channel closed", map[string]any{
+						"episodeID": episodeID,
+					})
 					return
 				}
 				if _, err := fmt.Fprint(w, s); err != nil {
 					// Report the write error and cancel the stream.
+					h.log.Warn("Writer goroutine: write failed (client disconnected?)", map[string]any{
+						"episodeID": episodeID,
+						"error":     err,
+					})
 					select {
 					case writeErrCh <- err:
 					default:
@@ -125,7 +148,18 @@ func (h *TranscriptHandler) handleSSEStream(w http.ResponseWriter, r *http.Reque
 	}()
 
 	// Helper to enqueue SSE event payloads without blocking indefinitely.
-	enqueue := func(payload string) error {
+	// Returns error if context is cancelled or send fails.
+	enqueue := func(payload string) (err error) {
+		// Recover from panic if channel is closed
+		defer func() {
+			if r := recover(); r != nil {
+				h.log.Debug("Attempted to send to closed channel (race condition)", map[string]any{
+					"episodeID": episodeID,
+				})
+				err = fmt.Errorf("channel closed")
+			}
+		}()
+
 		select {
 		case eventCh <- payload:
 			return nil
@@ -141,19 +175,46 @@ func (h *TranscriptHandler) handleSSEStream(w http.ResponseWriter, r *http.Reque
 		func(chunk *Chunk) error {
 			data, _ := json.Marshal(chunk)
 			payload := fmt.Sprintf("event: chunk\ndata: %s\n\n", data)
-			return enqueue(payload)
+			if err := enqueue(payload); err != nil {
+				// Context cancelled or channel closed - stop processing
+				return err
+			}
+			return nil
 		},
 		// Speaker callback
 		func(speaker *Speaker) error {
 			data, _ := json.Marshal(speaker)
 			payload := fmt.Sprintf("event: speaker\ndata: %s\n\n", data)
-			return enqueue(payload)
+			if err := enqueue(payload); err != nil {
+				// Context cancelled or channel closed - stop processing
+				return err
+			}
+			return nil
 		},
 	)
 
+	h.log.Debug("StreamTranscript completed", map[string]any{
+		"episodeID": episodeID,
+		"error":     err,
+	})
+
+	// Check if context was cancelled before trying to send final events
+	if streamCtx.Err() != nil {
+		h.log.Info("Context cancelled, skipping final event", map[string]any{
+			"episodeID": episodeID,
+		})
+		// Close channel and wait for writer to finish
+		close(eventCh)
+		<-writerDone
+		return
+	}
+
 	// Send complete or error event through the channel before closing
 	if err != nil {
-		h.log.Error("Stream error", map[string]any{"error": err})
+		h.log.Error("Stream error", map[string]any{
+			"episodeID": episodeID,
+			"error":     err,
+		})
 		errorMsg := map[string]string{"error": err.Error()}
 		data, _ := json.Marshal(errorMsg)
 		payload := fmt.Sprintf("event: error\ndata: %s\n\n", data)
@@ -164,6 +225,9 @@ func (h *TranscriptHandler) handleSSEStream(w http.ResponseWriter, r *http.Reque
 		default:
 		}
 	} else {
+		h.log.Info("Stream completed successfully", map[string]any{
+			"episodeID": episodeID,
+		})
 		// Send complete event through the channel
 		payload := "event: complete\ndata: {}\n\n"
 		select {
@@ -175,6 +239,10 @@ func (h *TranscriptHandler) handleSSEStream(w http.ResponseWriter, r *http.Reque
 
 	// Close event channel to signal writer goroutine to exit
 	close(eventCh)
+
+	h.log.Debug("Event channel closed, waiting for writer to finish", map[string]any{
+		"episodeID": episodeID,
+	})
 
 	// Wait for writer goroutine to finish processing all events
 	<-writerDone

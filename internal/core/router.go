@@ -11,6 +11,7 @@ import (
 	"cribeapp.com/cribe-server/internal/routes/auth"
 	"cribeapp.com/cribe-server/internal/routes/migrations"
 	"cribeapp.com/cribe-server/internal/routes/podcasts"
+	"cribeapp.com/cribe-server/internal/routes/quizzes"
 	"cribeapp.com/cribe-server/internal/routes/status"
 	"cribeapp.com/cribe-server/internal/routes/transcripts"
 	"cribeapp.com/cribe-server/internal/routes/users"
@@ -21,6 +22,14 @@ type Response struct {
 	Message string `json:"message"`
 }
 
+// registerRoute registers both with and without trailing slash
+func registerRoute(mux *http.ServeMux, path string, handler func(http.ResponseWriter, *http.Request)) {
+	mux.HandleFunc(path, handler)
+	if path[len(path)-1] != '/' {
+		mux.HandleFunc(path+"/", handler)
+	}
+}
+
 func Handler(port string) error {
 	log := logger.NewCoreLogger("Router")
 
@@ -29,16 +38,17 @@ func Handler(port string) error {
 	mux := http.NewServeMux()
 
 	// Register routes
-	mux.HandleFunc("/auth/", auth.HandleHTTPRequests)
-	mux.HandleFunc("/migrations", migrations.HandleHTTPRequests)
-	mux.HandleFunc("/podcasts/", podcasts.HandleHTTPRequests)
-	mux.HandleFunc("/status/", status.HandleHTTPRequests)
-	mux.HandleFunc("/transcripts/", transcripts.HandleHTTPRequests)
-	mux.HandleFunc("/users/", users.HandleHTTPRequests)
+	registerRoute(mux, "/auth", auth.HandleHTTPRequests)
+	registerRoute(mux, "/migrations", migrations.HandleHTTPRequests)
+	registerRoute(mux, "/podcasts", podcasts.HandleHTTPRequests)
+	registerRoute(mux, "/quizzes", quizzes.HandleHTTPRequests)
+	registerRoute(mux, "/status", status.HandleHTTPRequests)
+	registerRoute(mux, "/transcripts", transcripts.HandleHTTPRequests)
+	registerRoute(mux, "/users", users.HandleHTTPRequests)
 	mux.HandleFunc("/", utils.NotFound)
 
 	log.Debug("Registered routes", map[string]any{
-		"routes": []string{"/auth/", "/migrations", "/podcasts/", "/status/", "/transcripts/", "/users/", "/"},
+		"routes": []string{"/auth/", "/migrations", "/podcasts/", "/quizzes/", "/status/", "/transcripts/", "/users/", "/"},
 	})
 
 	muxWithMiddleware := middlewares.MainMiddleware(mux)

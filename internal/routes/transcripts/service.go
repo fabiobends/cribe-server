@@ -15,7 +15,7 @@ import (
 
 // TranscriptionClientInterface defines the contract for transcription clients
 type TranscriptionClientInterface interface {
-	StreamAudioURL(audioURL string, callback transcription.StreamCallback) error
+	StreamAudioURL(ctx context.Context, audioURL string, callback transcription.StreamCallback) error
 }
 
 // Service handles transcript business logic
@@ -93,6 +93,17 @@ func (s *Service) StreamTranscript(ctx context.Context, episodeID int, chunkCB C
 		"episodeID": episodeID,
 	})
 
+	// Check context early
+	select {
+	case <-ctx.Done():
+		s.log.Info("Context cancelled before starting stream", map[string]any{
+			"episodeID": episodeID,
+			"error":     ctx.Err(),
+		})
+		return ctx.Err()
+	default:
+	}
+
 	// Check if transcript already exists in DB
 	transcriptID, exists, err := s.getExistingTranscript(episodeID)
 	if err != nil {
@@ -118,7 +129,7 @@ func (s *Service) StreamTranscript(ctx context.Context, episodeID int, chunkCB C
 	})
 
 	// Stream from transcription API and save to DB
-	return s.streamFromTranscriptionAPI(episodeID, episode.AudioURL, episode.Description, chunkCB, speakerCB)
+	return s.streamFromTranscriptionAPI(ctx, episodeID, episode.AudioURL, episode.Description, chunkCB, speakerCB)
 }
 
 // getExistingTranscript checks if a transcript exists for the episode
@@ -179,7 +190,7 @@ func (s *Service) streamFromDB(transcriptID int, chunkCB ChunkCallback, speakerC
 	})
 
 	// For cached transcripts, send chunks in batches to reduce SSE events and prevent UI flickering
-	const batchSize = 5
+	const batchSize = 50
 	for i := 0; i < len(chunks); i += batchSize {
 		end := min(i+batchSize, len(chunks))
 
@@ -216,7 +227,7 @@ func (s *Service) streamFromDB(transcriptID int, chunkCB ChunkCallback, speakerC
 }
 
 // streamFromTranscriptionAPI streams from transcription API and saves to DB
-func (s *Service) streamFromTranscriptionAPI(episodeId int, audioURL, episodeDesc string, chunkCB ChunkCallback, speakerCB SpeakerCallback) error {
+func (s *Service) streamFromTranscriptionAPI(ctx context.Context, episodeId int, audioURL, episodeDesc string, chunkCB ChunkCallback, speakerCB SpeakerCallback) error {
 	const (
 		minSamplesForInference = 50 // Min words before inferring speaker name
 	)
@@ -239,8 +250,8 @@ func (s *Service) streamFromTranscriptionAPI(episodeId int, audioURL, episodeDes
 		return fmt.Errorf("failed to create transcript record: %w", err)
 	}
 
-	// Stream from transcription API (client handles context and options internally)
-	err = s.transcriptionClient.StreamAudioURL(audioURL, func(response *transcription.StreamResponse) error {
+	// Stream from transcription API
+	err = s.transcriptionClient.StreamAudioURL(ctx, audioURL, func(response *transcription.StreamResponse) error {
 		if len(response.Channel.Alternatives) == 0 {
 			return nil
 		}
@@ -306,6 +317,16 @@ func (s *Service) streamFromTranscriptionAPI(episodeId int, audioURL, episodeDes
 						return
 					}
 
+					// Check if context was cancelled before proceeding
+					select {
+					case <-ctx.Done():
+						s.log.Debug("Context cancelled, skipping speaker update", map[string]any{
+							"speakerIndex": idx,
+						})
+						return
+					default:
+					}
+
 					s.log.Info("Success on speaker inference", map[string]any{
 						"speakerIndex":    idx,
 						"inferredName":    name,
@@ -318,6 +339,16 @@ func (s *Service) streamFromTranscriptionAPI(episodeId int, audioURL, episodeDes
 							"speakerIndex": idx,
 						})
 						return
+					}
+
+					// Check context again right before sending to client
+					select {
+					case <-ctx.Done():
+						s.log.Debug("Context cancelled before sending speaker update", map[string]any{
+							"speakerIndex": idx,
+						})
+						return
+					default:
 					}
 
 					// Update client with real name
@@ -339,9 +370,10 @@ func (s *Service) streamFromTranscriptionAPI(episodeId int, audioURL, episodeDes
 			mu.Unlock()
 
 			if err := chunkCB(&chunk); err != nil {
-				s.log.Info("Client disconnected, continuing transcription", map[string]any{
+				s.log.Info("Client disconnected, stopping chunk processing", map[string]any{
 					"error": err.Error(),
 				})
+				return err // Stop processing more chunks
 			}
 
 		}
@@ -350,7 +382,18 @@ func (s *Service) streamFromTranscriptionAPI(episodeId int, audioURL, episodeDes
 	})
 
 	if err != nil {
-		_ = s.repo.UpdateTranscriptStatus(transcriptID, string(TranscriptStatusFailed), err.Error())
+		// Check if error is due to context cancellation (client disconnect)
+		if ctx.Err() != nil {
+			s.log.Info("Client disconnected, abandoning transcription", map[string]any{
+				"transcriptID": transcriptID,
+				"chunksCount":  len(chunks),
+			})
+			// Client disconnected - abandon partial work
+			_ = s.repo.UpdateTranscriptStatus(transcriptID, TranscriptStatusFailed, "Client disconnected during streaming")
+			return nil
+		}
+
+		_ = s.repo.UpdateTranscriptStatus(transcriptID, TranscriptStatusFailed, err.Error())
 		s.log.Error("Transcription streaming error", map[string]any{
 			"error": err.Error(),
 		})
@@ -359,13 +402,13 @@ func (s *Service) streamFromTranscriptionAPI(episodeId int, audioURL, episodeDes
 
 	// Streaming completed successfully, save to DB in background
 	// Pass speakerInferred map to skip already-inferred speakers
-	go s.saveTranscriptInBackground(transcriptID, chunks, speakerChunks, episodeDesc, speakerInferred, speakerCB)
+	go s.saveTranscriptInBackground(transcriptID, chunks, speakerChunks, episodeDesc, speakerInferred)
 
 	return nil
 }
 
 // saveTranscriptInBackground saves chunks and infers speaker names in the background
-func (s *Service) saveTranscriptInBackground(transcriptID int, chunks []Chunk, speakerChunks map[int][]string, episodeDesc string, speakerInferred map[int]bool, speakerCB SpeakerCallback) {
+func (s *Service) saveTranscriptInBackground(transcriptID int, chunks []Chunk, speakerChunks map[int][]string, episodeDesc string, speakerInferred map[int]bool) {
 	s.log.Info("Saving transcript to DB in background", map[string]any{
 		"transcriptID": transcriptID,
 		"totalChunks":  len(chunks),
@@ -376,7 +419,7 @@ func (s *Service) saveTranscriptInBackground(transcriptID int, chunks []Chunk, s
 		s.log.Error("Failed to save chunks", map[string]any{
 			"error": err.Error(),
 		})
-		_ = s.repo.UpdateTranscriptStatus(transcriptID, string(TranscriptStatusFailed), err.Error())
+		_ = s.repo.UpdateTranscriptStatus(transcriptID, TranscriptStatusFailed, err.Error())
 		return
 	}
 
@@ -428,24 +471,12 @@ func (s *Service) saveTranscriptInBackground(transcriptID int, chunks []Chunk, s
 				})
 				return
 			}
-
-			// Update client with real name
-			if speakerCB != nil {
-				if err := speakerCB(&Speaker{
-					Index: idx,
-					Name:  speakerName,
-				}); err != nil {
-					s.log.Debug("Client disconnected during late inference", map[string]any{
-						"error": err.Error(),
-					})
-				}
-			}
 		}(speakerIndex, contextWords)
 	}
 	wg.Wait()
 
 	// Update transcript status
-	if err := s.repo.UpdateTranscriptStatus(transcriptID, string(TranscriptStatusComplete), ""); err != nil {
+	if err := s.repo.UpdateTranscriptStatus(transcriptID, TranscriptStatusComplete, ""); err != nil {
 		s.log.Error("Failed to update transcript status", map[string]any{
 			"error": err.Error(),
 		})
