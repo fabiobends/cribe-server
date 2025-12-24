@@ -180,9 +180,20 @@ func (r *QuizRepository) CreateSession(session UserQuizSession) (UserQuizSession
 	})
 
 	query := `
-		INSERT INTO user_quiz_sessions (user_id, episode_id, status, total_questions, answered_questions, correct_answers)
-		VALUES ($1, $2, $3, $4, $5, $6)
-		RETURNING id, user_id, episode_id, status, total_questions, answered_questions, correct_answers, started_at, completed_at, updated_at
+		WITH inserted_session AS (
+			INSERT INTO user_quiz_sessions (user_id, episode_id, status, total_questions, answered_questions, correct_answers)
+			VALUES ($1, $2, $3, $4, $5, $6)
+			RETURNING id, user_id, episode_id, status, total_questions, answered_questions, correct_answers, started_at, completed_at, updated_at
+		)
+		SELECT
+			s.id, s.user_id, s.episode_id,
+			e.name as episode_name,
+			p.name as podcast_name,
+			s.status, s.total_questions, s.answered_questions, s.correct_answers,
+			s.started_at, s.completed_at, s.updated_at
+		FROM inserted_session s
+		JOIN episodes e ON s.episode_id = e.id
+		JOIN podcasts p ON e.podcast_id = p.id
 	`
 
 	result, err := r.sessionRepo.Executor.QueryItem(query,
@@ -209,9 +220,16 @@ func (r *QuizRepository) GetSessionByID(sessionID int) (UserQuizSession, error) 
 	})
 
 	query := `
-		SELECT id, user_id, episode_id, status, total_questions, answered_questions, correct_answers, started_at, completed_at, updated_at
-		FROM user_quiz_sessions
-		WHERE id = $1
+		SELECT
+			s.id, s.user_id, s.episode_id,
+			e.name as episode_name,
+			p.name as podcast_name,
+			s.status, s.total_questions, s.answered_questions, s.correct_answers,
+			s.started_at, s.completed_at, s.updated_at
+		FROM user_quiz_sessions s
+		JOIN episodes e ON s.episode_id = e.id
+		JOIN podcasts p ON e.podcast_id = p.id
+		WHERE s.id = $1
 	`
 
 	result, err := r.sessionRepo.Executor.QueryItem(query, sessionID)
@@ -234,10 +252,17 @@ func (r *QuizRepository) GetActiveSessionByUserAndEpisode(userID, episodeID int)
 
 	// Get the most recent session (completed or in_progress)
 	query := `
-		SELECT id, user_id, episode_id, status, total_questions, answered_questions, correct_answers, started_at, completed_at, updated_at
-		FROM user_quiz_sessions
-		WHERE user_id = $1 AND episode_id = $2
-		ORDER BY started_at DESC
+		SELECT
+			s.id, s.user_id, s.episode_id,
+			e.name as episode_name,
+			p.name as podcast_name,
+			s.status, s.total_questions, s.answered_questions, s.correct_answers,
+			s.started_at, s.completed_at, s.updated_at
+		FROM user_quiz_sessions s
+		JOIN episodes e ON s.episode_id = e.id
+		JOIN podcasts p ON e.podcast_id = p.id
+		WHERE s.user_id = $1 AND s.episode_id = $2
+		ORDER BY s.started_at DESC
 		LIMIT 1
 	`
 
@@ -260,10 +285,17 @@ func (r *QuizRepository) GetSessionsByUserID(userID int) ([]UserQuizSession, err
 	})
 
 	query := `
-		SELECT id, user_id, episode_id, status, total_questions, answered_questions, correct_answers, started_at, completed_at, updated_at
-		FROM user_quiz_sessions
-		WHERE user_id = $1
-		ORDER BY updated_at DESC
+		SELECT
+			s.id, s.user_id, s.episode_id,
+			e.name as episode_name,
+			p.name as podcast_name,
+			s.status, s.total_questions, s.answered_questions, s.correct_answers,
+			s.started_at, s.completed_at, s.updated_at
+		FROM user_quiz_sessions s
+		JOIN episodes e ON s.episode_id = e.id
+		JOIN podcasts p ON e.podcast_id = p.id
+		WHERE s.user_id = $1
+		ORDER BY s.updated_at DESC
 	`
 
 	result, err := r.sessionRepo.Executor.QueryList(query, userID)

@@ -313,6 +313,8 @@ func NewMockQuizRepository() *QuizRepository {
 				ID:                len(sessions) + 1,
 				UserID:            args[0].(int),
 				EpisodeID:         args[1].(int),
+				EpisodeName:       "Mock Episode",
+				PodcastName:       "Mock Podcast",
 				Status:            status,
 				TotalQuestions:    args[3].(int),
 				AnsweredQuestions: args[4].(int),

@@ -52,6 +52,8 @@ type UserQuizSession struct {
 	ID                int           `json:"id"`
 	UserID            int           `json:"user_id"`
 	EpisodeID         int           `json:"episode_id"`
+	EpisodeName       string        `json:"episode_name"`
+	PodcastName       string        `json:"podcast_name"`
 	Status            SessionStatus `json:"status"`
 	TotalQuestions    int           `json:"total_questions"`
 	AnsweredQuestions int           `json:"answered_questions"`
