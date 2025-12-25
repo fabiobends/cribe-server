@@ -6,11 +6,11 @@ import (
 	"cribeapp.com/cribe-server/internal/clients/podcast"
 )
 
-func HandleHTTPRequests(w http.ResponseWriter, r *http.Request) {
+func HandleHTTPRequests() func(http.ResponseWriter, *http.Request) {
 	repo := NewPodcastRepository()
 	apiClient := podcast.NewClient()
 	service := NewPodcastService(repo, apiClient)
 	handler := NewPodcastHandler(service)
 
-	handler.HandleRequest(w, r)
+	return handler.HandleRequest
 }

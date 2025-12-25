@@ -12,7 +12,7 @@ func TestStatusIntegration(t *testing.T) {
 	resp := utils.MustSendTestRequest[StatusInfo](utils.TestRequest{
 		Method:      http.MethodGet,
 		URL:         "/status",
-		HandlerFunc: HandleHTTPRequests,
+		HandlerFunc: HandleHTTPRequests(),
 	})
 
 	if resp.StatusCode != http.StatusOK {

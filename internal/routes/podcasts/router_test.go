@@ -17,7 +17,7 @@ var log = logger.NewCoreLogger("PodcastsRouterTest")
 // handlerWithAuth injects userID into context for authenticated routes
 func handlerWithAuth(w http.ResponseWriter, r *http.Request) {
 	ctx := context.WithValue(r.Context(), middlewares.UserIDContextKey, utils.TestUserID)
-	HandleHTTPRequests(w, r.WithContext(ctx))
+	HandleHTTPRequests()(w, r.WithContext(ctx))
 }
 
 func TestPodcasts_IntegrationTests(t *testing.T) {
@@ -56,7 +56,7 @@ func TestPodcasts_IntegrationTests(t *testing.T) {
 		resp := utils.MustSendTestRequest[[]Podcast](utils.TestRequest{
 			Method:      http.MethodGet,
 			URL:         "/podcasts",
-			HandlerFunc: HandleHTTPRequests,
+			HandlerFunc: HandleHTTPRequests(),
 		})
 
 		if resp.StatusCode != http.StatusOK {
@@ -78,7 +78,7 @@ func TestPodcasts_IntegrationTests(t *testing.T) {
 		resp := utils.MustSendTestRequest[Podcast](utils.TestRequest{
 			Method:      http.MethodGet,
 			URL:         fmt.Sprintf("/podcasts/%d", podcastID),
-			HandlerFunc: HandleHTTPRequests,
+			HandlerFunc: HandleHTTPRequests(),
 		})
 
 		if resp.StatusCode != http.StatusOK {
@@ -101,7 +101,7 @@ func TestPodcasts_IntegrationTests(t *testing.T) {
 		resp := utils.MustSendTestRequest[map[string]any](utils.TestRequest{
 			Method:      http.MethodPost,
 			URL:         "/podcasts/invalid",
-			HandlerFunc: HandleHTTPRequests,
+			HandlerFunc: HandleHTTPRequests(),
 		})
 
 		if resp.StatusCode != http.StatusNotFound {
@@ -114,7 +114,7 @@ func TestPodcasts_IntegrationTests(t *testing.T) {
 		resp := utils.MustSendTestRequest[map[string]any](utils.TestRequest{
 			Method:      http.MethodPut,
 			URL:         "/podcasts",
-			HandlerFunc: HandleHTTPRequests,
+			HandlerFunc: HandleHTTPRequests(),
 		})
 
 		if resp.StatusCode != http.StatusMethodNotAllowed {

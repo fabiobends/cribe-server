@@ -7,9 +7,7 @@ import (
 	"cribeapp.com/cribe-server/internal/routes/transcripts"
 )
 
-// HandleHTTPRequests is the entry point for all quiz-related HTTP requests
-func HandleHTTPRequests(w http.ResponseWriter, r *http.Request) {
-	// Initialize dependencies
+func HandleHTTPRequests() func(http.ResponseWriter, *http.Request) {
 	repo := NewQuizRepository()
 	transcriptRepo := transcripts.NewTranscriptRepository()
 	llmClient := llm.NewClient()
@@ -17,5 +15,5 @@ func HandleHTTPRequests(w http.ResponseWriter, r *http.Request) {
 	service := NewQuizService(*repo, transcriptRepo, llmClient)
 	handler := NewQuizHandler(service)
 
-	handler.HandleRequest(w, r)
+	return handler.HandleRequest
 }

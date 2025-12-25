@@ -37,14 +37,22 @@ func Handler(port string) error {
 
 	mux := http.NewServeMux()
 
+	// Initialize handlers
+	authHandler := auth.HandleHTTPRequests()
+	podcastsHandler := podcasts.HandleHTTPRequests()
+	quizzesHandler := quizzes.HandleHTTPRequests()
+	statusHandler := status.HandleHTTPRequests()
+	transcriptsHandler := transcripts.HandleHTTPRequests()
+	usersHandler := users.HandleHTTPRequests()
+
 	// Register routes
-	registerRoute(mux, "/auth", auth.HandleHTTPRequests)
+	registerRoute(mux, "/auth", authHandler)
 	registerRoute(mux, "/migrations", migrations.HandleHTTPRequests)
-	registerRoute(mux, "/podcasts", podcasts.HandleHTTPRequests)
-	registerRoute(mux, "/quizzes", quizzes.HandleHTTPRequests)
-	registerRoute(mux, "/status", status.HandleHTTPRequests)
-	registerRoute(mux, "/transcripts", transcripts.HandleHTTPRequests)
-	registerRoute(mux, "/users", users.HandleHTTPRequests)
+	registerRoute(mux, "/podcasts", podcastsHandler)
+	registerRoute(mux, "/quizzes", quizzesHandler)
+	registerRoute(mux, "/status", statusHandler)
+	registerRoute(mux, "/transcripts", transcriptsHandler)
+	registerRoute(mux, "/users", usersHandler)
 	mux.HandleFunc("/", utils.NotFound)
 
 	log.Debug("Registered routes", map[string]any{

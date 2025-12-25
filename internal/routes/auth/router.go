@@ -8,11 +8,11 @@ import (
 	"cribeapp.com/cribe-server/internal/routes/users"
 )
 
-func HandleHTTPRequests(w http.ResponseWriter, r *http.Request) {
+func HandleHTTPRequests() func(http.ResponseWriter, *http.Request) {
 	repo := users.NewUserRepository()
 	tokenService := NewTokenServiceReady()
 	service := NewAuthService(repo, tokenService)
 	handler := NewAuthHandler(service)
 
-	handler.HandleRequest(w, r)
+	return handler.HandleRequest
 }

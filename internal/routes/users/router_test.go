@@ -22,7 +22,7 @@ func TestUsers_IntegrationTests(t *testing.T) {
 		resp := utils.MustSendTestRequest[errors.ErrorResponse](utils.TestRequest{
 			Method:      http.MethodGet,
 			URL:         "/users/1",
-			HandlerFunc: HandleHTTPRequests,
+			HandlerFunc: HandleHTTPRequests(),
 		})
 
 		if resp.StatusCode != http.StatusNotFound {
@@ -39,7 +39,7 @@ func TestUsers_IntegrationTests(t *testing.T) {
 		resp := utils.MustSendTestRequest[errors.ErrorResponse](utils.TestRequest{
 			Method:      http.MethodGet,
 			URL:         "/users/invalid",
-			HandlerFunc: HandleHTTPRequests,
+			HandlerFunc: HandleHTTPRequests(),
 		})
 
 		if resp.StatusCode != http.StatusBadRequest {
@@ -62,7 +62,7 @@ func TestUsers_IntegrationTests(t *testing.T) {
 			Method:      http.MethodPost,
 			URL:         "/users",
 			Body:        userDTO,
-			HandlerFunc: HandleHTTPRequests,
+			HandlerFunc: HandleHTTPRequests(),
 		})
 
 		if resp.StatusCode != http.StatusBadRequest {
@@ -86,7 +86,7 @@ func TestUsers_IntegrationTests(t *testing.T) {
 			Method:      http.MethodPost,
 			URL:         "/users/",
 			Body:        userDTO,
-			HandlerFunc: HandleHTTPRequests,
+			HandlerFunc: HandleHTTPRequests(),
 		})
 
 		if resp.StatusCode != http.StatusCreated {
@@ -110,7 +110,7 @@ func TestUsers_IntegrationTests(t *testing.T) {
 		resp := utils.MustSendTestRequest[User](utils.TestRequest{
 			Method:      http.MethodGet,
 			URL:         "/users/1", // First user created in the database
-			HandlerFunc: HandleHTTPRequests,
+			HandlerFunc: HandleHTTPRequests(),
 		})
 
 		if resp.StatusCode != http.StatusOK {
@@ -134,7 +134,7 @@ func TestUsers_IntegrationTests(t *testing.T) {
 		resp := utils.MustSendTestRequest[errors.ErrorResponse](utils.TestRequest{
 			Method:      http.MethodGet,
 			URL:         "/users/2",
-			HandlerFunc: HandleHTTPRequests,
+			HandlerFunc: HandleHTTPRequests(),
 		})
 
 		if resp.StatusCode != http.StatusNotFound {
@@ -146,7 +146,7 @@ func TestUsers_IntegrationTests(t *testing.T) {
 		resp := utils.MustSendTestRequest[[]User](utils.TestRequest{
 			Method:      http.MethodGet,
 			URL:         "/users",
-			HandlerFunc: HandleHTTPRequests,
+			HandlerFunc: HandleHTTPRequests(),
 		})
 
 		if resp.StatusCode != http.StatusOK {
