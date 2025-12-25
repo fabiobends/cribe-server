@@ -7,12 +7,12 @@ import (
 	"cribeapp.com/cribe-server/internal/clients/transcription"
 )
 
-func HandleHTTPRequests(w http.ResponseWriter, r *http.Request) {
+func HandleHTTPRequests() func(http.ResponseWriter, *http.Request) {
 	transcriptionClient := transcription.NewClient()
 	llmClient := llm.NewClient()
 
 	service := NewService(transcriptionClient, llmClient)
 	handler := NewTranscriptHandler(service)
 
-	handler.HandleRequest(w, r)
+	return handler.HandleRequest
 }

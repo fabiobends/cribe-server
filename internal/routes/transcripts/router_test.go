@@ -17,7 +17,7 @@ var log = logger.NewCoreLogger("TranscriptsRouterTest")
 func handlerWithAuth(w http.ResponseWriter, r *http.Request) {
 	ctx := context.WithValue(r.Context(), middlewares.UserIDContextKey, utils.TestUserID)
 	r = r.WithContext(ctx)
-	HandleHTTPRequests(w, r)
+	HandleHTTPRequests()(w, r)
 }
 
 func TestTranscripts_IntegrationTests(t *testing.T) {

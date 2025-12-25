@@ -18,7 +18,7 @@ var log = logger.NewCoreLogger("QuizzesRouterTest")
 // handlerWithAuth injects userID into context for authenticated routes
 func handlerWithAuth(w http.ResponseWriter, r *http.Request) {
 	ctx := context.WithValue(r.Context(), middlewares.UserIDContextKey, utils.TestUserID)
-	HandleHTTPRequests(w, r.WithContext(ctx))
+	HandleHTTPRequests()(w, r.WithContext(ctx))
 }
 
 func TestQuizzes_IntegrationTests(t *testing.T) {
